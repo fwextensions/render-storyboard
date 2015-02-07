@@ -13,7 +13,13 @@ define([
 	_
 ) {
 	var XOffset = 2000,
-		YOffset = 0;
+		YOffset = 0,
+		LabelFont = "Helvetica",
+		LabelColor = "#5f5f5f",
+		BorderColor = "#b5b5b5",
+		ViewBackgroundColor = "#f0f0f0",
+		ViewBackgroundLabelColor = "#cbcbcf",
+		ArrowColor = "#b0b0b0";
 
 	var tag = base.tag,
 		tags = base.tags,
@@ -77,6 +83,42 @@ define([
 			inChild)
 		{
 			this.children.push(inChild);
+		},
+
+
+		splitCamelCase: function(
+			string)
+		{
+			return _.invoke(string.split(/(?=[A-Z])/), "trim").join(" ");
+		},
+
+
+		createRect: function(
+			overrides)
+		{
+			var rect = {
+					left: this.x,
+					top: this.y,
+					width: this.width,
+					height: this.height,
+					fill: null,
+					stroke: BorderColor
+				};
+
+			return new fabric.Rect(_.assign(rect, overrides));
+		},
+
+
+		createGroup: function(
+			childElements,
+			overrides)
+		{
+			var group = {
+					left: this.x,
+					top: this.y
+				};
+
+			return new fabric.Group(childElements, _.assign(group, overrides));
 		}
 	});
 
@@ -98,7 +140,7 @@ define([
 
 	// =======================================================================
 	tag("scene", Container, {
-		TitleBarHeight: 25,
+		TitleBarHeight: 32,
 		DefaultWidth: 320,
 
 
@@ -109,12 +151,12 @@ define([
 
 			this.addAttributes(findOne(this.node, "point"), ["_x", "_y"]);
 			this.addChildren(findOne(this.node, "objects"));
+			this.name = "Scene";
 
 			if (this.children.length) {
-				this.name = this.children[0].name || "Scene";
+				this.name = this.splitCamelCase(this.children[0].name) || "Scene";
 			}
 console.log(this.name);
-
 		},
 
 
@@ -133,24 +175,23 @@ console.log(this.name);
 							width: labelWidth,
 							height: this.TitleBarHeight,
 							fill: "white",
-							stroke: "black"
+							stroke: BorderColor
 						}),
 						new fabric.Text(this.name, {
 							originX: "center",
 							left: labelWidth / 2,
-							top: -this.TitleBarHeight + 2,
+							top: -this.TitleBarHeight + 7,
 							width: labelWidth,
 							height: this.TitleBarHeight,
-							fontFamily: "Helvetica",
-							fontSize: 14,
+							fontFamily: LabelFont,
+							fontSize: 13,
 							fontWeight: "bold",
 							textAlign: "center",
-							fill: "#666"
+							fill: LabelColor
 						})
 					);
 
-console.log("scene title", this.TitleBarHeight, labelWidth);
-					return new fabric.Group(
+					return this.createGroup(
 						childElements,
 						{
 							left: this.x + XOffset,
@@ -171,7 +212,7 @@ console.log("scene title", this.TitleBarHeight, labelWidth);
 		{
 			this._super(inNode);
 
-			this.name = this.node._customClass;
+			this.name = this.splitCamelCase(this.node._customClass);
 			this.addChildren(findOne(this.node, "view.subviews"));
 		},
 
@@ -181,21 +222,9 @@ console.log("scene title", this.TitleBarHeight, labelWidth);
 			return Promise.all(_.invoke(this.children, "render"))
 				.bind(this)
 				.then(function(childElements) {
-					childElements.unshift(new fabric.Rect({
-						left: this.x,
-						top: this.y,
-						width: this.width,
-						height: this.height,
-						fill: null,
-						stroke: "black"
-					}));
+					childElements.unshift(this.createRect());
 
-					return new fabric.Group(
-						childElements,
-						{
-							left: this.x,
-							top: this.y
-						});
+					return this.createGroup(childElements);
 				});
 		}
 	});
@@ -211,20 +240,13 @@ console.log("scene title", this.TitleBarHeight, labelWidth);
 		{
 			this._super(inNode);
 
-			this.name = this.node._title || "NavigationController";
+			this.name = this.splitCamelCase(this.node._title) || "Navigation Controller";
 		},
 
 
 		render: function()
 		{
-			return new fabric.Rect({
-					left: this.x,
-					top: this.y,
-					width: this.width,
-					height: this.height,
-					fill: null,
-					stroke: "black"
-				});
+			return this.createRect();
 		}
 	});
 
@@ -237,7 +259,6 @@ console.log("scene title", this.TitleBarHeight, labelWidth);
 			this._super(inNode);
 
 			this.addChildren(findOne(this.node, "subviews"));
-console.log("scrollView children", this.id, this.children.length);
 		},
 
 
@@ -253,40 +274,9 @@ console.log("scrollView children", this.id, this.children.length);
 			return Promise.all(_.invoke(this.children, "render"))
 				.bind(this)
 				.then(function(childElements) {
-					childElements.unshift(new fabric.Rect({
-						left: this.x,
-						top: this.y,
-						width: this.width,
-						height: this.height,
-						fill: null,
-//						fill: null,
-						stroke: "black"
-					}));
-console.log("scrollView", childElements.length);
+					childElements.unshift(this.createRect());
 
-					return new fabric.Group(
-//					return new fabric.ClippedGroup(
-						childElements,
-						{
-							left: this.x,
-							top: this.y
-//							top: this.y,
-//							clipTo: function(context) {
-//								context.rect(
-//									this.top,
-//									this.left,
-//									this.width,
-//									this.height
-//								);
-//							}.bind(this)
-//							clipTo: this.clipTo
-//							clipLeft: this.x,
-//							clipTop: this.y,
-//							clipWidth: this.width,
-//							clipHeight: this.height
-//							left: this.x + XOffset,
-//							top: this.y + YOffset
-						});
+					return this.createGroup(childElements);
 				});
 		}
 	});

@@ -181,39 +181,6 @@ define([
 			} else {
 				return false;
 			}
-		},
-
-
-		transform: function()
-		{
-				// we need to get the transform from the node attributes,
-				// not our attr object, which may have a transform mixed in
-				// from some other parent object
-			var transform = this.node.attributes.transform || "",
-				matrix = transform.match(MatrixTransformRE),
-				translate = transform.match(TranslateTransformRE),
-				values;
-
-			if (matrix) {
-				values = _.map(matrix[1].split(CommaRE), parseFloat);
-
-				if (values.length == 6) {
-						// the values are in column order, but don't include
-						// the bottom row, so insert 0 0 1 in the bottom
-						// row position
-					values = values.slice(0, 2)
-						.concat(0, values.slice(2, 4), 0, values.slice(4, 6), 1);
-					this.dom.transformSelection({ matrix: values }, "transformAttributes");
-				}
-			} else if (translate) {
-				values = _.map(translate[1].split(CommaRE), parseFloat);
-				this.dom.moveSelectionBy({ x: values[0], y: values[1] }, false, false);
-
-					// moving the selection doesn't seem to move the fill handles,
-					// so move them by the same amount
-				this.dom.moveFillVectorHandleBy({ x: values[0], y: values[1] },
-					"start", false, false);
-			}
 		}
 	});
 
