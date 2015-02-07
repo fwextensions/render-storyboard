@@ -4,6 +4,7 @@ var require = {
 		lodash: "lib/lodash",
 		raphael: "lib/scale.raphael",
 		fabric: "lib/fabric",
+		Promise: "lib/bluebird",
 //		raphael: "lib/raphael",
 		"socket.io": "lib/socket.io",
 		xml2json: "lib/xml2json",

@@ -1,78 +1,83 @@
 require([
 	"tags",
+	"Promise",
 	"xml2json",
 	"fabric",
-	"raphael",
 	"jquery",
 	"lodash"
 ], function(
 	tags,
+	Promise,
 	xml2js,
 	fabric,
-	Raphael,
 	$,
 	_
 ) {
 console.time("parse");
 	var xmlText = $("#storyboard").text(),
 		xmlDom = $.parseXML(xmlText),
-		xml = $(xmlDom),
-//		x2js = new xml2js({ arrayAccessForm: "property" }),
-//		storyboardData = x2js.xml2json(xmlDom);
 		storyboardData = xml2js(xmlDom).document;
 console.timeEnd("parse");
 
 
 console.log(storyboardData);
 
-//	var scenes = xml.find("scene");
-
-//	var display = Raphael("display", 10000, 10000);
 	var canvas = new fabric.Canvas("canvas");
 
-//	display.scaleAll(.25);
+	fabric.ClippedGroup = fabric.util.createClass(fabric.Group, {
+		type: "clipped_group",
 
-//	scenes.each(function(i, sceneObject) {
-//		var scene = $(sceneObject),
-//			origin = scene.find("point")[0],
-//			originX = attr(origin, "x") + 2000,
-//			originY = attr(origin, "y"),
-//			rect = scene.find("rect")[0];
-//
-////		display.rect(
-////			originX + attr(rect, "x"),
-////			originY + attr(rect, "y"),
-////			attr(rect, "width"),
-////			attr(rect, "height")
-////		)
-////			.attr({fill: "orange"});
-//
-//		canvas.add(new fabric.Rect({
-//			left: originX + attr(rect, "x"),
-//			top: originY + attr(rect, "y"),
-//			width: attr(rect, "width"),
-//			height: attr(rect, "height"),
-//			fill: "orange"
-//		}));
+			// default clip options
+		clipTop: 0,
+		clipLeft: 0,
+		clipWidth: 0,
+		clipHeight: 0,
 
-//console.log($(sceneObject).find("point")[0].attributes.x);
-//	});
+		render: function(ctx)
+		{
+			ctx.save();
+			ctx.beginPath();
+			ctx.rect(
+				this.get("clipTop"), this.get("clipLeft"), this.get("clipWidth"),
+				this.get("clipHeight"));
+			ctx.stroke(); // debugging
+			ctx.closePath();
+			ctx.clip();
+console.log("clip", this.get("clipTop"), this.get("clipLeft"), this.get("clipWidth"),
+				this.get("clipHeight"));
 
-	_.where(_.find(storyboardData._, { $: "scenes" })._, { $: "scene" }).forEach(function(scene) {
-//	storyboardData.scenes.scene.forEach(function(scene) {
-//console.log(scene);
-		var sceneObject = new tags.scene(scene),
-			element = sceneObject.render();
-console.log(element);
+			this.callSuper("render", ctx);
 
-		canvas.add(element);
+			ctx.restore();
+		},
 
-//		var sceneObject = new tags.scene(scene);
-//
-//		canvas.add(sceneObject.render());
+		containsPoint: function(point)
+		{
+			return (point.x >= this.get("clipLeft") &&
+			point.x <= this.get("clipLeft") + this.get("clipWidth") &&
+			point.y >= this.get("clipTop") &&
+			point.y <= this.get("clipTop") + this.get("clipHeight") &&
+			this.callSuper("containsPoint", point));
+		}
 	});
 
-	canvas.renderAll();
+console.time("generate scenes");
+		// turn the <scene> elements into JS objects
+	var scenes = _.where(_.find(storyboardData._, { $: "scenes" })._, { $: "scene" }).map(function(scene) {
+			return new tags.scene(scene);
+		});
+console.timeEnd("generate scenes");
+
+console.time("render");
+	Promise.all(_.invoke(scenes, "render")).then(function(fabricScenes) {
+			// wait for all the scenes to be rendered, then add them all in one
+			// go, without rendering on each add, which should be faster.  then
+			// render the whole canvas.
+		canvas.renderOnAddRemove = false;
+		canvas.add.apply(canvas, fabricScenes);
+		canvas.renderAll(true);
+console.timeEnd("render");
+	});
 
 
 	function attr(

@@ -114,28 +114,17 @@ define([
 
 	// =======================================================================
 	api.TagBase = tag({
-		DefaultAttributes: {
-			visibility: "visible",
-			display: "block"
-		},
-
-
 		node: null,
-		attr: null,
-		dom: null,
-		directory: null,
-		element: null,
-		text: "",
-		cdata: "",
+		type: "",
+		id: "",
+		name: "",
 
 
 		init: function(
-			inNode,
-			inDom,
-			inDirectory)
+			inNode)
 		{
 			this.node = inNode;
-//			this.type = inNode.name;
+			this.type = inNode.$;
 			this.id = inNode._id;
 		},
 

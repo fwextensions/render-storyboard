@@ -3,10 +3,12 @@ define([
 	"./base",
 //	"./state",
 	"fabric",
+	"Promise",
 	"lodash"
 ], function(
 	base,
 	fabric,
+	Promise,
 //	state,
 	_
 ) {
@@ -80,88 +82,141 @@ define([
 
 
 	// =======================================================================
-	tag("scene", Container, {
+	var RectContainer = tag(Container, {
+		RectPath: "rect",
+
+
 		init: function(
 			inNode)
 		{
 			this._super(inNode);
 
-//			var point = findOne(this.node, "point");
+			this.addAttributes(findOne(this.node, this.RectPath));
+		}
+	});
+
+
+	// =======================================================================
+	tag("scene", Container, {
+		TitleBarHeight: 25,
+		DefaultWidth: 320,
+
+
+		init: function(
+			inNode)
+		{
+			this._super(inNode);
 
 			this.addAttributes(findOne(this.node, "point"), ["_x", "_y"]);
-//			this.x = parseFloat(point._x);
-//			this.y = parseFloat(point._y);
-//			this.x = parseFloat(this.node.point["@x"]);
-//			this.y = parseFloat(this.node.point["@y"]);
-
 			this.addChildren(findOne(this.node, "objects"));
+
+			if (this.children.length) {
+				this.name = this.children[0].name || "Scene";
+			}
+console.log(this.name);
+
 		},
 
 
-		render: function() {
-			var childElements = _.invoke(this.children, "render");
+		render: function()
+		{
+			return Promise.all(_.invoke(this.children, "render"))
+				.bind(this)
+				.then(function(childElements) {
+					var firstChild = this.children[0],
+						labelWidth = firstChild && firstChild.width || this.DefaultWidth;
 
-			return new fabric.Group(
-				childElements,
-				{
-					left: this.x + XOffset,
-					top: this.y + YOffset
+					childElements.unshift(
+						new fabric.Rect({
+							left: 0,
+							top: -this.TitleBarHeight,
+							width: labelWidth,
+							height: this.TitleBarHeight,
+							fill: "white",
+							stroke: "black"
+						}),
+						new fabric.Text(this.name, {
+							originX: "center",
+							left: labelWidth / 2,
+							top: -this.TitleBarHeight + 2,
+							width: labelWidth,
+							height: this.TitleBarHeight,
+							fontFamily: "Helvetica",
+							fontSize: 14,
+							fontWeight: "bold",
+							textAlign: "center",
+							fill: "#666"
+						})
+					);
+
+console.log("scene title", this.TitleBarHeight, labelWidth);
+					return new fabric.Group(
+						childElements,
+						{
+							left: this.x + XOffset,
+							top: this.y + YOffset
+						});
 				});
 		}
 	});
 
 
 	// =======================================================================
-	tag("viewController", Container, {
+	tag("viewController", RectContainer, {
+		RectPath: "view.rect",
+
+
 		init: function(
 			inNode)
 		{
 			this._super(inNode);
 
-			var view = findOne(this.node, "view"),
-				rect = findOne(view, "rect");
-//			var rect = findOne(this.node, "view.rect");
-
-			this.addAttributes(rect);
-
-			this.addChildren(findOne(view, "subviews"));
+			this.name = this.node._customClass;
+			this.addChildren(findOne(this.node, "view.subviews"));
 		},
 
 
-		render: function() {
-			var childElements = _.invoke(this.children, "render");
+		render: function()
+		{
+			return Promise.all(_.invoke(this.children, "render"))
+				.bind(this)
+				.then(function(childElements) {
+					childElements.unshift(new fabric.Rect({
+						left: this.x,
+						top: this.y,
+						width: this.width,
+						height: this.height,
+						fill: null,
+						stroke: "black"
+					}));
 
-			childElements.unshift(new fabric.Rect({
-				left: this.x,
-				top: this.y,
-				width: this.width,
-				height: this.height,
-				fill: null,
-				stroke: "black"
-			}));
-
-			return new fabric.Group(
-				childElements,
-				{
-					left: this.x,
-					top: this.y
+					return new fabric.Group(
+						childElements,
+						{
+							left: this.x,
+							top: this.y
+						});
 				});
 		}
 	});
 
 
 	// =======================================================================
-	tag("imageView", {
+	tag("navigationController", RectContainer, {
+		RectPath: "navigationBar.rect",
+
+
 		init: function(
 			inNode)
 		{
 			this._super(inNode);
 
-			this.addAttributes(findOne(this.node, "rect"));
+			this.name = this.node._title || "NavigationController";
 		},
 
 
-		render: function() {
+		render: function()
+		{
 			return new fabric.Rect({
 					left: this.x,
 					top: this.y,
@@ -170,6 +225,106 @@ define([
 					fill: null,
 					stroke: "black"
 				});
+		}
+	});
+
+
+	// =======================================================================
+	tag("scrollView", RectContainer, {
+		init: function(
+			inNode)
+		{
+			this._super(inNode);
+
+			this.addChildren(findOne(this.node, "subviews"));
+console.log("scrollView children", this.id, this.children.length);
+		},
+
+
+		clipTo: function(
+			context)
+		{
+//			context.rect()
+		},
+
+
+		render: function()
+		{
+			return Promise.all(_.invoke(this.children, "render"))
+				.bind(this)
+				.then(function(childElements) {
+					childElements.unshift(new fabric.Rect({
+						left: this.x,
+						top: this.y,
+						width: this.width,
+						height: this.height,
+						fill: null,
+//						fill: null,
+						stroke: "black"
+					}));
+console.log("scrollView", childElements.length);
+
+					return new fabric.Group(
+//					return new fabric.ClippedGroup(
+						childElements,
+						{
+							left: this.x,
+							top: this.y
+//							top: this.y,
+//							clipTo: function(context) {
+//								context.rect(
+//									this.top,
+//									this.left,
+//									this.width,
+//									this.height
+//								);
+//							}.bind(this)
+//							clipTo: this.clipTo
+//							clipLeft: this.x,
+//							clipTop: this.y,
+//							clipWidth: this.width,
+//							clipHeight: this.height
+//							left: this.x + XOffset,
+//							top: this.y + YOffset
+						});
+				});
+		}
+	});
+
+
+	// =======================================================================
+	tag("imageView", {
+		URLTemplate: _.template("Images.xcassets/${imageName}.imageset/${imageName}@2x.png"),
+//		URLTemplate: _.template("Images.xcassets/${imageName}.imageset/${imageName}.png"),
+
+
+		init: function(
+			inNode)
+		{
+			this._super(inNode);
+
+			this.addAttributes(findOne(this.node, "rect"));
+			this.imageName = this.node._image;
+		},
+
+
+		render: function()
+		{
+			var frame = {
+					left: this.x,
+					top: this.y,
+					width: this.width,
+					height: this.height
+				},
+				url = this.URLTemplate(this);
+console.log(url);
+
+			return new Promise(function(resolve, reject) {
+				fabric.Image.fromURL(url, function(image) {
+					image.set(frame);
+					resolve(image);
+				});
+			});
 		}
 	});
 
