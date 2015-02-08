@@ -1,26 +1,19 @@
 // ===========================================================================
 define([
 	"./base",
+	"./consts",
 //	"./state",
 	"fabric",
 	"Promise",
 	"lodash"
 ], function(
 	base,
+	k,
 	fabric,
 	Promise,
 //	state,
 	_
 ) {
-	var XOffset = 2000,
-		YOffset = 0,
-		LabelFont = "Helvetica",
-		LabelColor = "#5f5f5f",
-		BorderColor = "#b5b5b5",
-		ViewBackgroundColor = "#f0f0f0",
-		ViewBackgroundLabelColor = "#cbcbcf",
-		ArrowColor = "#b0b0b0";
-
 	var tag = base.tag,
 		tags = base.tags,
 		TagBase = base.TagBase,
@@ -32,15 +25,13 @@ define([
 		node,
 		type)
 	{
-		if (node[type]) {
-			return node[type];
-		} else {
-			var path = type.split(".");
+		var path = type.split(".");
 
-			return _.reduce(path, function(node, type) {
-				return node[type] || _.find(node._, {$: type});
-			}, node);
-		}
+			// loop through each element in the path, looking for a child
+			// in the current node
+		return _.reduce(path, function(node, type) {
+			return node[type] || _.find(node._, { $: type });
+		}, node);
 	}
 
 
@@ -49,7 +40,18 @@ define([
 		node,
 		type)
 	{
-		return _.where(node._, { $: type });
+		var path = type.split("."),
+			last = path.length - 1;
+
+			// loop through each element in the path, looking for a child
+			// in the current node
+		return _.reduce(path, function(node, type, i) {
+			if (i == last) {
+				return _.where(node._, { $: type });
+			} else {
+				return node[type] || _.find(node._, { $: type });
+			}
+		}, node);
 	}
 
 
@@ -83,42 +85,6 @@ define([
 			inChild)
 		{
 			this.children.push(inChild);
-		},
-
-
-		splitCamelCase: function(
-			string)
-		{
-			return _.invoke(string.split(/(?=[A-Z])/), "trim").join(" ");
-		},
-
-
-		createRect: function(
-			overrides)
-		{
-			var rect = {
-					left: this.x,
-					top: this.y,
-					width: this.width,
-					height: this.height,
-					fill: null,
-					stroke: BorderColor
-				};
-
-			return new fabric.Rect(_.assign(rect, overrides));
-		},
-
-
-		createGroup: function(
-			childElements,
-			overrides)
-		{
-			var group = {
-					left: this.x,
-					top: this.y
-				};
-
-			return new fabric.Group(childElements, _.assign(group, overrides));
 		}
 	});
 
@@ -149,14 +115,15 @@ define([
 		{
 			this._super(inNode);
 
-			this.addAttributes(findOne(this.node, "point"), ["_x", "_y"]);
-			this.addChildren(findOne(this.node, "objects"));
+			this.addAttributes(this.node.point, ["_x", "_y"]);
+			this.addChildren(this.node.objects);
 			this.name = "Scene";
+			this.id = this.node._sceneID;
 
 			if (this.children.length) {
 				this.name = this.splitCamelCase(this.children[0].name) || "Scene";
 			}
-console.log(this.name);
+console.log("SCENE", this.name);
 		},
 
 
@@ -175,7 +142,7 @@ console.log(this.name);
 							width: labelWidth,
 							height: this.TitleBarHeight,
 							fill: "white",
-							stroke: BorderColor
+							stroke: k.BorderColor
 						}),
 						new fabric.Text(this.name, {
 							originX: "center",
@@ -183,19 +150,19 @@ console.log(this.name);
 							top: -this.TitleBarHeight + 7,
 							width: labelWidth,
 							height: this.TitleBarHeight,
-							fontFamily: LabelFont,
+							fontFamily: k.LabelFont,
 							fontSize: 13,
 							fontWeight: "bold",
 							textAlign: "center",
-							fill: LabelColor
+							fill: k.LabelColor
 						})
 					);
 
 					return this.createGroup(
 						childElements,
 						{
-							left: this.x + XOffset,
-							top: this.y + YOffset
+							left: this.x + k.XOffset,
+							top: this.y + k.YOffset
 						});
 				});
 		}
@@ -207,6 +174,9 @@ console.log(this.name);
 		RectPath: "view.rect",
 
 
+		backgroundColor: "rgb(255, 255, 255)",
+
+
 		init: function(
 			inNode)
 		{
@@ -214,6 +184,20 @@ console.log(this.name);
 
 			this.name = this.splitCamelCase(this.node._customClass);
 			this.addChildren(findOne(this.node, "view.subviews"));
+
+				// find the backgroundColor element
+			var backgroundColor = _.find(findAll(this.node, "view.color"),
+					{ _key: "backgroundColor" });
+
+				// RGB colors won't have the white attribute at all
+			if (backgroundColor && backgroundColor._white != "1") {
+				if ("_white" in backgroundColor) {
+						// use the white value in all channels
+					this.backgroundColor = k.WhiteRGBTemplate(backgroundColor);
+				} else {
+					this.backgroundColor = k.RGBTemplate(backgroundColor);
+				}
+			}
 		},
 
 
@@ -222,7 +206,7 @@ console.log(this.name);
 			return Promise.all(_.invoke(this.children, "render"))
 				.bind(this)
 				.then(function(childElements) {
-					childElements.unshift(this.createRect());
+					childElements.unshift(this.createRect({ fill: this.backgroundColor }));
 
 					return this.createGroup(childElements);
 				});
@@ -258,7 +242,7 @@ console.log(this.name);
 		{
 			this._super(inNode);
 
-			this.addChildren(findOne(this.node, "subviews"));
+			this.addChildren(this.node.subviews);
 		},
 
 
@@ -293,7 +277,7 @@ console.log(this.name);
 		{
 			this._super(inNode);
 
-			this.addAttributes(findOne(this.node, "rect"));
+			this.addAttributes(this.node.rect);
 			this.imageName = this.node._image;
 		},
 
@@ -307,8 +291,8 @@ console.log(this.name);
 					height: this.height
 				},
 				url = this.URLTemplate(this);
-console.log(url);
 
+				// return a promise that gets resolved when the image loads
 			return new Promise(function(resolve, reject) {
 				fabric.Image.fromURL(url, function(image) {
 					image.set(frame);

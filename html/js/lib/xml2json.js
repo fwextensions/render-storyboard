@@ -38,63 +38,44 @@ function xml2json_translator() {
 
             if (xml.attributes.length)   // element with attributes  ..
                for (var i=0; i<xml.attributes.length; i++)
-//                  parent[xml.nodeName+"@"+xml.attributes[i].nodeName] = xml.attributes[i].nodeValue;
 				 o["_"+xml.attributes[i].nodeName] = (xml.attributes[i].value||"").toString();
 
             if (xml.firstChild) { // element has child nodes. Figure out some properties of it's structure, to guide us later.
-               var textChild=0, cdataChild=0, type1Child = 0, hasElementChild=false, needsArray=false;
-               var elemCount = {};
+               var textChild=0, cdataChild=0, hasElementChild=false;
+
                for (var n=xml.firstChild; n; n=n.nextSibling) {
                   if (n.nodeType==1) {
-					  type1Child++;
                      hasElementChild = true;
-                     elemCount[n.nodeName] = (elemCount[n.nodeName] ? elemCount[n.nodeName] + 1 : 1);
-                     if( elemCount[n.nodeName] > 1 || type1Child > 1) needsArray=true;
                   }
                   else if (n.nodeType==3 && n.nodeValue.match(/[^ \f\n\r\t\v]/)) textChild++; // non-whitespace text
                   else if (n.nodeType==4) cdataChild++; // cdata section node
                }
-               if (hasElementChild && textChild) needsArray=true;
-               if (hasElementChild && cdataChild) needsArray=true;
-               if (textChild && cdataChild) needsArray=true;
-               if (cdataChild > 1) needsArray=true;
 
-               if (hasElementChild && !needsArray) { // Neatly structured and unique child elements, no plain text/cdata in the mix
-                     X.removeWhite(xml);
-                     for (var n=xml.firstChild; n; n=n.nextSibling) {
-                        if (n.nodeType == 3)  // text node
-                           //o["#text"] = X.escape(n.nodeValue);
-                           o["#text"] = X.escape(n.nodeValue);
-                        else if (n.nodeType == 4)  // cdata node
-                           o["#cdata"] = X.escape(n.nodeValue);
-                        else if (o[n.nodeName]) {  // multiple occurence of element ..
-                           if (o[n.nodeName] instanceof Array)
-                              o[n.nodeName][o[n.nodeName].length] = X.toObj(n, o);
-                           else
-                              o[n.nodeName] = [o[n.nodeName], X.toObj(n, o)];
-                        }
-                        else  // first occurence of element..
-                           o[n.nodeName] = X.toObj(n, o);
-                     }
-               }
-               else if ( needsArray ) {
+               if (hasElementChild) { // Neatly structured and unique child elements, no plain text/cdata in the mix
+						// always store all the children in order in an array,
+						// even if it's just one child
                      o._ = [];
                      X.removeWhite(xml);
+
                      for (var n=xml.firstChild; n; n=n.nextSibling) {
                         if (n.nodeType == 3)  // text node
-                           //o["#text"] = X.escape(n.nodeValue);
-                           o._[o._.length] = X.escape(n.nodeValue); // TODO: shouldn't escape() happen in toJson() / printing phase???
+                           o._[o._.length] = o["#text"] = X.escape(n.nodeValue);
                         else if (n.nodeType == 4)  // cdata node
-                           o._[o._.length] = { "#cdata" : X.escape(n.nodeValue) }; // TODO: same here? especially with cdata?
-                        else  { // element
-/*                           // at least in browser, cannot create new object with value of a variable as key
-                           var newObj = {};
-                           // must set the key here separately
-                           newObj[n.nodeName] = X.toObj(n, o);
-                           o[o.length] = newObj; // push
-*/
-                           o._[o._.length] = X.toObj(n, o); //push
-                        }
+                           o._[o._.length] = o["#cdata"] = X.escape(n.nodeValue);
+                        else {
+							var nodeObject = X.toObj(n, o);
+
+							o._[o._.length] = nodeObject; //push
+
+							if (o[n.nodeName]) {  // multiple occurence of element ..
+								if (o[n.nodeName] instanceof Array)
+									o[n.nodeName][o[n.nodeName].length] = nodeObject;
+								else
+									o[n.nodeName] = [o[n.nodeName], nodeObject];
+							}
+							else  // first occurence of element..
+								o[n.nodeName] = nodeObject;
+						}
                      }
                }
                else if (textChild) { // pure text
@@ -110,8 +91,6 @@ function xml2json_translator() {
 				o = {};
 				o[xml.nodeName] = true;
 			}
-//            if (!xml.firstChild) o = null;
-
          }
          else
             X.err("unhandled node type: " + xml.nodeType);

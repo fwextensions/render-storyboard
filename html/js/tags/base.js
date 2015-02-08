@@ -1,48 +1,17 @@
-/*
-	To do:
-
-	Done:
-*/
-
-
 // ===========================================================================
 define([
-//	"../fw/defaults",
 //	"./state",
-//	"./color",
-//	"./regex",
+	"./consts",
 	"./utils",
+	"fabric",
 	"lodash"
 ], function(
-//	defaults,
 //	state,
-//	color,
-//	re,
+	k,
 	utils,
+	fabric,
 	_
 ) {
-//	const NumberUnitsRE = re.NumberUnits,
-//		CommaRE = re.Comma,
-//		WhitespaceCommaRE = re.WhitespaceComma,
-//		SemiColonRE = re.SemiColon,
-//		StyleAttributesRE = re.StyleAttributes,
-//		MatrixTransformRE = re.MatrixTransform,
-//		TranslateTransformRE = re.TranslateTransform;
-
-
-	// =======================================================================
-	function addAttribute(
-		inDestination,
-		inProperty,
-		inAttr,
-		inAttrProperty)
-	{
-		if (inAttrProperty in inAttr) {
-			inDestination[inProperty] = inAttr[inAttrProperty];
-		}
-	}
-
-
 	// =======================================================================
 	function defaultAttributes(
 		inConstructor,
@@ -131,6 +100,7 @@ define([
 
 		render: function()
 		{
+			throw new Error("Unimplmented render function called in " + this.type);
 		},
 
 
@@ -154,33 +124,39 @@ define([
 		},
 
 
-		bounds: function()
+		splitCamelCase: function(
+			string)
 		{
-			var x = this.attr.x || 0,
-				y = this.attr.y || 0;
-
-			return {
-				left: x,
-				top: y,
-				right: x + this.attr.width,
-				bottom: y + this.attr.height
-			};
+			return _.invoke(string.split(/(?=[A-Z])/), "trim").join(" ");
 		},
 
 
-		clip: function(
-			inElement)
+		createRect: function(
+			overrides)
 		{
-			var clipPath = state.getDef(this.node.attributes["clip-path"]);
+			var rect = {
+					left: this.x,
+					top: this.y,
+					width: this.width,
+					height: this.height,
+					fill: null,
+					stroke: k.BorderColor
+				};
 
-			if (clipPath && inElement) {
-					// add ourselves to the clipping path
-				clipPath.addClippedChild(inElement);
+			return new fabric.Rect(_.assign(rect, overrides));
+		},
 
-				return true;
-			} else {
-				return false;
-			}
+
+		createGroup: function(
+			childElements,
+			overrides)
+		{
+			var group = {
+					left: this.x,
+					top: this.y
+				};
+
+			return new fabric.Group(childElements, _.assign(group, overrides));
 		}
 	});
 
