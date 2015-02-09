@@ -88,6 +88,21 @@ define([
 		},
 
 
+		getGroupAttributes: function()
+		{
+			return {
+				visible: this.node._hidden !== "YES"
+			};
+		},
+
+
+		renderFrame: function(
+			childElements)
+		{
+			return this.createRect();
+		},
+
+
 		render: function()
 		{
 			return Promise.all(_.invoke(this.children, "render"))
@@ -99,7 +114,8 @@ define([
 						// so that it can be based on the sizes of the children.
 					childElements = _.flatten([this.renderFrame(childElements), childElements]);
 
-					return this.createGroup(childElements);
+						// give subclasses a chance to change the attributes
+					return this.createGroup(childElements, this.getGroupAttributes());
 				});
 		}
 	});
@@ -202,7 +218,16 @@ console.log("SCENE", this.name);
 			childElements)
 		{
 			var firstChild = this.children[0],
-				labelWidth = firstChild && firstChild.width || k.DefaultWidth;
+				labelWidth = firstChild && firstChild.width || k.DefaultWidth,
+				sceneHeight = firstChild && firstChild.height || k.DefaultHeight;
+
+				// draw a border around the scene contents
+			childElements.push(this.createRect({
+				left: 0,
+				top: 0,
+				width: labelWidth,
+				height: sceneHeight
+			}));
 
 			return [
 				new fabric.Rect({
@@ -265,7 +290,10 @@ console.log("SCENE", this.name);
 
 		renderFrame: function()
 		{
-			return this.createRect({ fill: this.backgroundColor });
+			return this.createRect({
+				fill: this.backgroundColor,
+				stroke: null
+			});
 		}
 	});
 
@@ -281,10 +309,52 @@ console.log("SCENE", this.name);
 		},
 
 
-		clipTo: function(
-			context)
+		getGroupAttributes: function()
 		{
-//			context.rect()
+			var attributes = this._super();
+
+			attributes.left = this.x;
+			attributes.top = this.y;
+
+			return attributes;
+		},
+
+
+		render: function()
+		{
+				// we have to override render() so that we can flatten the images
+				// into an image that's clipped to the size of the scrollView
+			return Promise.all(_.invoke(this.children, "render"))
+				.bind(this)
+				.then(function(childElements) {
+					var group = this.createGroup(childElements),
+						attributes = this.getGroupAttributes(),
+						self = this;
+
+					return new Promise(function(resolve, reject) {
+						group.cloneAsImage(function(image) {
+							attributes.clipTo = function(context) {
+// TODO: this won't work if the child views aren't right at the top of the scrollView
+
+									// the context is centered on the image, so
+									// we want to position the clipping rect at
+									// the top left of the image, and make it the
+									// same size as the scrollView
+								context.rect(
+									-self.width / 2,
+									-image.height / 2,
+									self.width,
+									self.height
+								);
+							};
+
+								// position the image where the scrollView is and
+								// return it as the element that renders the group
+							image.set(attributes);
+							resolve(image);
+						});
+					});
+				});
 		}
 	});
 
@@ -315,18 +385,19 @@ console.log("SCENE", this.name);
 
 		render: function()
 		{
-			var frame = {
+			var attributes = {
 					left: this.x,
 					top: this.y,
 					width: this.width,
-					height: this.height
+					height: this.height,
+					visible: this.node._hidden !== "YES"
 				},
 				url = this.URLTemplate(this);
 
 				// return a promise that gets resolved when the image loads
 			return new Promise(function(resolve, reject) {
 				fabric.Image.fromURL(url, function(image) {
-					image.set(frame);
+					image.set(attributes);
 					resolve(image);
 				});
 			});

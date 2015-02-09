@@ -9,7 +9,8 @@ define(function() {
 function xml2json_translator() {
    var X = {
       err: function(msg) {
-         alert("Error: " + msg);
+         console.error("Error: " + msg);
+//         alert("Error: " + msg);
       },
       /**
        * Return a js object from given xml.

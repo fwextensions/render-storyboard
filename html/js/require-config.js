@@ -18,5 +18,6 @@ var require = {
 		fabric: {
 			exports: "fabric"
 		}
-	}
+	},
+	urlArgs: "bust=" +  (new Date()).getTime()
 };
