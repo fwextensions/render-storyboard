@@ -95,6 +95,7 @@ define([
 			this.node = inNode;
 			this.type = inNode.$;
 			this.id = inNode._id;
+			this.name = inNode._title || "";
 		},
 
 
@@ -127,6 +128,8 @@ define([
 		splitCamelCase: function(
 			string)
 		{
+			string = string || "";
+
 			return _.invoke(string.split(/(?=[A-Z])/), "trim").join(" ");
 		},
 

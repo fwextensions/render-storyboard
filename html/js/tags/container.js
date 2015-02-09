@@ -85,6 +85,67 @@ define([
 			inChild)
 		{
 			this.children.push(inChild);
+		},
+
+
+		render: function()
+		{
+			return Promise.all(_.invoke(this.children, "render"))
+				.bind(this)
+				.then(function(childElements) {
+						// renderFrame() may return an array of elements, so
+						// flatten that with childElements on the end, so they're
+						// above the frame.  pass childElements into renderFrame()
+						// so that it can be based on the sizes of the children.
+					childElements = _.flatten([this.renderFrame(childElements), childElements]);
+
+					return this.createGroup(childElements);
+				});
+		}
+	});
+
+
+	// =======================================================================
+	var ParentContainer = tag(Container, {
+		x: 0,
+		y: 0,
+		width: k.DefaultWidth,
+		height: k.DefaultHeight,
+
+
+		init: function(
+			inNode)
+		{
+			this._super(inNode);
+
+				// show the pretty-printed version of the element's type in the
+				// central part of the view.  the scene header will show the
+				// element's title, if any.
+			this.typeLabel = this.splitCamelCase(_.capitalize(this.type)) || "Unknown Controller";
+		},
+
+
+		renderFrame: function(
+			childElements)
+		{
+			return [
+				this.createRect({
+					fill: k.ViewBackgroundColor
+				}),
+				new fabric.Text(this.typeLabel, {
+					originX: "center",
+					originY: "center",
+					left: this.width / 2,
+					top: this.height / 2,
+					width: this.Width,
+					fontFamily: k.LabelFont,
+					fontSize: 24,
+					fontWeight: "bold",
+					textAlign: "center",
+					fill: k.ViewBackgroundLabelColor
+				})
+			];
+
 		}
 	});
 
@@ -100,6 +161,13 @@ define([
 			this._super(inNode);
 
 			this.addAttributes(findOne(this.node, this.RectPath));
+		},
+
+
+		renderFrame: function(
+			childElements)
+		{
+			return this.createRect();
 		}
 	});
 
@@ -107,7 +175,6 @@ define([
 	// =======================================================================
 	tag("scene", Container, {
 		TitleBarHeight: 32,
-		DefaultWidth: 320,
 
 
 		init: function(
@@ -120,6 +187,10 @@ define([
 			this.name = "Scene";
 			this.id = this.node._sceneID;
 
+				// TODO: handle offscreen scenes better
+			this.x += k.XOffset;
+			this.y += k.YOffset;
+
 			if (this.children.length) {
 				this.name = this.splitCamelCase(this.children[0].name) || "Scene";
 			}
@@ -127,44 +198,35 @@ console.log("SCENE", this.name);
 		},
 
 
-		render: function()
+		renderFrame: function(
+			childElements)
 		{
-			return Promise.all(_.invoke(this.children, "render"))
-				.bind(this)
-				.then(function(childElements) {
-					var firstChild = this.children[0],
-						labelWidth = firstChild && firstChild.width || this.DefaultWidth;
+			var firstChild = this.children[0],
+				labelWidth = firstChild && firstChild.width || k.DefaultWidth;
 
-					childElements.unshift(
-						new fabric.Rect({
-							left: 0,
-							top: -this.TitleBarHeight,
-							width: labelWidth,
-							height: this.TitleBarHeight,
-							fill: "white",
-							stroke: k.BorderColor
-						}),
-						new fabric.Text(this.name, {
-							originX: "center",
-							left: labelWidth / 2,
-							top: -this.TitleBarHeight + 7,
-							width: labelWidth,
-							height: this.TitleBarHeight,
-							fontFamily: k.LabelFont,
-							fontSize: 13,
-							fontWeight: "bold",
-							textAlign: "center",
-							fill: k.LabelColor
-						})
-					);
-
-					return this.createGroup(
-						childElements,
-						{
-							left: this.x + k.XOffset,
-							top: this.y + k.YOffset
-						});
-				});
+			return [
+				new fabric.Rect({
+					left: 0,
+					top: -this.TitleBarHeight,
+					width: labelWidth,
+					height: this.TitleBarHeight,
+					fill: "white",
+					stroke: k.BorderColor
+				}),
+				new fabric.Text(this.name, {
+					originX: "center",
+					originY: "center",
+					left: labelWidth / 2,
+					top: -this.TitleBarHeight / 2,
+					width: labelWidth,
+					height: this.TitleBarHeight,
+					fontFamily: k.LabelFont,
+					fontSize: 13,
+					fontWeight: "bold",
+					textAlign: "center",
+					fill: k.LabelColor
+				})
+			];
 		}
 	});
 
@@ -201,36 +263,9 @@ console.log("SCENE", this.name);
 		},
 
 
-		render: function()
+		renderFrame: function()
 		{
-			return Promise.all(_.invoke(this.children, "render"))
-				.bind(this)
-				.then(function(childElements) {
-					childElements.unshift(this.createRect({ fill: this.backgroundColor }));
-
-					return this.createGroup(childElements);
-				});
-		}
-	});
-
-
-	// =======================================================================
-	tag("navigationController", RectContainer, {
-		RectPath: "navigationBar.rect",
-
-
-		init: function(
-			inNode)
-		{
-			this._super(inNode);
-
-			this.name = this.splitCamelCase(this.node._title) || "Navigation Controller";
-		},
-
-
-		render: function()
-		{
-			return this.createRect();
+			return this.createRect({ fill: this.backgroundColor });
 		}
 	});
 
@@ -250,20 +285,16 @@ console.log("SCENE", this.name);
 			context)
 		{
 //			context.rect()
-		},
-
-
-		render: function()
-		{
-			return Promise.all(_.invoke(this.children, "render"))
-				.bind(this)
-				.then(function(childElements) {
-					childElements.unshift(this.createRect());
-
-					return this.createGroup(childElements);
-				});
 		}
 	});
+
+
+	// =======================================================================
+	tag("navigationController", ParentContainer);
+
+
+	// =======================================================================
+	tag("tabBarController", ParentContainer);
 
 
 	// =======================================================================

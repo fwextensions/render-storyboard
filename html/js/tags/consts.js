@@ -6,6 +6,8 @@ define([
 	return {
 		XOffset: 2000,
 		YOffset: 100,
+		DefaultWidth: 320,
+		DefaultHeight: 568,
 		LabelFont: "Helvetica",
 		LabelColor: "#5f5f5f",
 		BorderColor: "#b5b5b5",
