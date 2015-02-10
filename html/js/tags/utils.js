@@ -1,16 +1,9 @@
-/* ===========================================================================
-
-	utils.js
-
-	Copyright 2013 John Dunning.  All rights reserved.
-	fw@johndunning.com
-	http://johndunning.com/fireworks
-
-   ======================================================================== */
-
-
 // ===========================================================================
-define(function() {
+define([
+	"lodash"
+], function(
+	_
+) {
 	// =======================================================================
 	function defineClass(
 		inConstructor,
@@ -69,6 +62,43 @@ define(function() {
 
 
 	// =======================================================================
+	function findOne(
+		node,
+		type)
+	{
+		var path = type.split(".");
+
+			// loop through each element in the path, looking for a child
+			// in the current node
+		return _.reduce(path, function(node, type) {
+			return node[type] || _.find(node._, { $: type });
+		}, node);
+	}
+
+
+	// =======================================================================
+	function findAll(
+		node,
+		type)
+	{
+		var path = type.split("."),
+			last = path.length - 1;
+
+			// loop through each element in the path, looking for a child
+			// in the current node
+		return _.reduce(path, function(node, type, i) {
+			if (!node) {
+				return [];
+			} else if (i == last) {
+				return _.where(node._, { $: type });
+			} else {
+				return node[type] || _.find(node._, { $: type });
+			}
+		}, node);
+	}
+
+
+	// =======================================================================
 	function hexToRGBA(
 		inHex,
 		inAlpha)
@@ -110,72 +140,6 @@ define(function() {
 		}
 
 		return "rgb" + a + "(" + components.join(",") + ")";
-	}
-
-
-	// =======================================================================
-	var PercentValueRE = /\s*[\d.]+\s*%/;
-	function parsePercentage(
-		inValue,
-		inRange)
-	{
-		var value = parseFloat(inValue);
-
-		if (PercentValueRE.test(inValue)) {
-			value = (value / 100) * (inRange || 1);
-		}
-
-		return value;
-	}
-
-
-	// =======================================================================
-	function reducePrecision(
-		inValue)
-	{
-		if (isNaN(inValue)) {
-			return inValue;
-		} else if (inValue == 0 || inValue < .001) {
-			return "0";
-		} else if (inValue < 1) {
-				// remove trailing 0s
-			return inValue.toPrecision(3).replace(/0+$/, "");
-		} else {
-			var remainder = inValue % 1,
-				whole = Math.floor(inValue),
-				rounded = Math.round(inValue),
-				roundedDifference = Math.abs(Math.round(inValue) - inValue);
-
-			if (roundedDifference < .001) {
-				return rounded.toString();
-			} else {
-					// remove trailing 0s
-				return (whole + remainder.toPrecision(3).slice(1)).replace(/0+$/, "");
-			}
-		}
-	}
-
-
-	// =======================================================================
-	function copyObject(
-		inObject)
-	{
-		if (typeof inObject == "object" && inObject !== null) {
-			return eval("(" + inObject.toSource() + ")");
-		} else {
-			return inObject;
-		}
-	}
-
-
-	// =======================================================================
-	function trim(
-		inString)
-	{
-			// make the .+ non-greedy, so that it doesn't eat any spaces at the
-			// end of the string.  only look for actual spaces, not \s, since
-			// we don't want to remove a return that's at the beginning or end.
-		return inString.replace(/^\s*(.+?)\s*$/m, "$1");
 	}
 
 
@@ -238,12 +202,10 @@ define(function() {
 
 	return {
 		defineClass: defineClass,
+		findOne: findOne,
+		findAll: findAll,
 		hexToRGBA: hexToRGBA,
 		hexToRGBAString: hexToRGBAString,
-		parsePercentage: parsePercentage,
-		reducePrecision: reducePrecision,
-		copyObject: copyObject,
-		trim: trim,
 		supplant: supplant
 	};
 });

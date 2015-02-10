@@ -1,4 +1,6 @@
 var require = {
+// TODO: remove cache bust param
+//	urlArgs: "bust=" +  (new Date()).getTime(),
 	paths: {
 		jquery: "lib/jquery-2.1.1",
 		lodash: "lib/lodash",
@@ -18,6 +20,5 @@ var require = {
 		fabric: {
 			exports: "fabric"
 		}
-	},
-	urlArgs: "bust=" +  (new Date()).getTime()
+	}
 };

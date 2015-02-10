@@ -2,6 +2,7 @@
 define([
 	"./base",
 	"./consts",
+	"./utils",
 //	"./state",
 	"fabric",
 	"Promise",
@@ -9,6 +10,7 @@ define([
 ], function(
 	base,
 	k,
+	utils,
 	fabric,
 	Promise,
 //	state,
@@ -17,42 +19,9 @@ define([
 	var tag = base.tag,
 		tags = base.tags,
 		TagBase = base.TagBase,
-		create = base.create;
-
-
-	// =======================================================================
-	function findOne(
-		node,
-		type)
-	{
-		var path = type.split(".");
-
-			// loop through each element in the path, looking for a child
-			// in the current node
-		return _.reduce(path, function(node, type) {
-			return node[type] || _.find(node._, { $: type });
-		}, node);
-	}
-
-
-	// =======================================================================
-	function findAll(
-		node,
-		type)
-	{
-		var path = type.split("."),
-			last = path.length - 1;
-
-			// loop through each element in the path, looking for a child
-			// in the current node
-		return _.reduce(path, function(node, type, i) {
-			if (i == last) {
-				return _.where(node._, { $: type });
-			} else {
-				return node[type] || _.find(node._, { $: type });
-			}
-		}, node);
-	}
+		create = base.create,
+		findOne = utils.findOne,
+		findAll = utils.findAll;
 
 
 	// =======================================================================
@@ -138,6 +107,8 @@ define([
 				// central part of the view.  the scene header will show the
 				// element's title, if any.
 			this.typeLabel = this.splitCamelCase(_.capitalize(this.type)) || "Unknown Controller";
+
+			this.segues = findAll(this.node, "connections.segue");
 		},
 
 
@@ -271,6 +242,7 @@ console.log("SCENE", this.name);
 
 			this.name = this.splitCamelCase(this.node._customClass);
 			this.addChildren(findOne(this.node, "view.subviews"));
+			this.segues = findAll(this.node, "connections.segue");
 
 				// find the backgroundColor element
 			var backgroundColor = _.find(findAll(this.node, "view.color"),
