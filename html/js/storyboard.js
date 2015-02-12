@@ -24,6 +24,24 @@ define([
 		this.scenes = this.storyboard.scenes.scene.map(function(sceneData) {
 			return new tags.scene(sceneData);
 		}.bind(this));
+
+			// loop through each scene in the XML DOM
+		var sceneNodes = document.evaluate("//scene", xmlDOM.documentElement),
+			sceneNode,
+			segueNodes,
+			segueNode,
+			i = 0;
+
+		while (sceneNode = sceneNodes.iterateNext()) {
+				// look for all the segues at any level within this scene
+			segueNodes = document.evaluate(".//segue", sceneNode);
+
+			while (segueNode = segueNodes.iterateNext()) {
+				this.scenes[i].segues.push(xml2js(segueNode).segue);
+			}
+
+			i++;
+		}
 	}
 
 
@@ -57,7 +75,7 @@ define([
 				}));
 
 			this.scenes.forEach(function(scene, i) {
-				var segues = scene.children[0].segues || [],
+				var segues = scene.segues || [],
 					element = fabricScenes[i];
 
 				segues.forEach(function(segue) {
@@ -68,7 +86,8 @@ define([
 						[points.from.x, points.from.y, points.to.x, points.to.y],
 						{
 							stroke: k.ArrowColor,
-							strokeWidth: k.ArrowWidth
+							strokeWidth: k.ArrowWidth,
+							selectable: false
 						}
 					));
 				}.bind(this));

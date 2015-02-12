@@ -107,8 +107,6 @@ define([
 				// central part of the view.  the scene header will show the
 				// element's title, if any.
 			this.typeLabel = this.splitCamelCase(_.capitalize(this.type)) || "Unknown Controller";
-
-			this.segues = findAll(this.node, "connections.segue");
 		},
 
 
@@ -173,6 +171,7 @@ define([
 			this.addChildren(this.node.objects);
 			this.name = "Scene";
 			this.id = this.node._sceneID;
+			this.segues = [];
 
 				// TODO: handle offscreen scenes better
 			this.x += k.XOffset;
@@ -242,7 +241,6 @@ console.log("SCENE", this.name);
 
 			this.name = this.splitCamelCase(this.node._customClass);
 			this.addChildren(findOne(this.node, "view.subviews"));
-			this.segues = findAll(this.node, "connections.segue");
 
 				// find the backgroundColor element
 			var backgroundColor = _.find(findAll(this.node, "view.color"),
@@ -304,22 +302,20 @@ console.log("SCENE", this.name);
 						self = this;
 
 					return new Promise(function(resolve, reject) {
-						group.cloneAsImage(function(image) {
-							attributes.clipTo = function(context) {
 // TODO: this won't work if the child views aren't right at the top of the scrollView
+							// instead of cloning the group as an image and clipping
+							// it, it's simpler to convert it to a cropped dataURL,
+							// since the cloned image will retain the original
+							// uncropped height, which throws off the scene height
+						var dataURL = group.toDataURL({
+								format: "png",
+								left: 0,
+								top: 0,
+								width: self.width,
+								height: self.height
+							});
 
-									// the context is centered on the image, so
-									// we want to position the clipping rect at
-									// the top left of the image, and make it the
-									// same size as the scrollView
-								context.rect(
-									-self.width / 2,
-									-image.height / 2,
-									self.width,
-									self.height
-								);
-							};
-
+						fabric.Image.fromURL(dataURL, function(image) {
 								// position the image where the scrollView is and
 								// return it as the element that renders the group
 							image.set(attributes);
