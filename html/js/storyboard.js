@@ -1,20 +1,29 @@
 define([
+	"./path",
 	"./tags",
 	"./tags/utils",
-	"./tags/consts",
 	"Promise",
 	"fabric",
 	"xml2json",
 	"lodash"
 ], function(
+	Path,
 	tags,
 	utils,
-	k,
 	Promise,
 	fabric,
 	xml2js,
 	_
 ) {
+	var ArrowCurveRadius = 8,
+		ArrowCurveOffset = Math.sqrt(Math.pow(ArrowCurveRadius, 2) / 2),
+		ArrowLineLength = 45,
+		ArrowColor = "#b0b0b0",
+		ArrowWidth = 3;
+
+	var BezierCurve = _.template("M${from.x},${from.y} L${from.x},<%= from.y + 45 %> C${from.x},<%= from.y + 90 %> ${to.x},<%= to.y - 90 %> ${to.x},<%= to.y - 45 %> L${to.x},${to.y}");
+
+
 	function Storyboard(
 		xmlDOM)
 	{
@@ -80,18 +89,101 @@ define([
 
 				segues.forEach(function(segue) {
 					var destination = scenesByRootViewID[segue._destination],
-						points = this.getConnectingPoints(element, destination);
+						path = this.calcSeguePath(element, destination);
 
-					this.canvas.add(new fabric.Line(
-						[points.from.x, points.from.y, points.to.x, points.to.y],
-						{
-							stroke: k.ArrowColor,
-							strokeWidth: k.ArrowWidth,
-							selectable: false
-						}
-					));
+					this.canvas.add(new fabric.Path(path, {
+						stroke: ArrowColor,
+						strokeWidth: ArrowWidth,
+						fill: null
+					}));
 				}.bind(this));
 			}.bind(this));
+		},
+
+
+		calcSeguePath: function(
+			element1,
+			element2)
+		{
+			function line(
+				start,
+				direction)
+			{
+				return {
+					x: start.x,
+					y: start.y + ArrowLineLength * direction
+				};
+			}
+
+
+			function circleCenter(
+				start,
+				direction)
+			{
+				return {
+					x: start.x + ArrowCurveOffset * direction,
+					y: start.y
+				};
+			}
+
+
+			function middleSegment(
+				point,
+				nx,
+				ny,
+				direction)
+			{
+				return {
+					x: point.x + ArrowCurveRadius * nx * direction,
+					y: point.y + ArrowCurveRadius * ny * direction
+				};
+			}
+
+
+			function hypotenuse(
+				a,
+				b)
+			{
+				return Math.sqrt(
+					Math.pow(a.x - b.x, 2),
+					Math.pow(b.y - b.y, 2)
+				);
+			}
+
+
+			var points = this.getConnectingPoints(element1, element2),
+				from = points.from,
+				to = points.to,
+				fromLineEnd = line(from, 1),
+				toLineEnd = line(to, -1),
+				fromCircleCenter = circleCenter(fromLineEnd, 1),
+				toCircleCenter = circleCenter(toLineEnd, -1),
+				distance = hypotenuse(fromCircleCenter, toCircleCenter),
+				vx = (toCircleCenter.x - fromCircleCenter.x) / distance,
+				vy = (toCircleCenter.y - fromCircleCenter.y) / distance,
+				c = (2 * ArrowCurveRadius) / distance,
+				h = Math.sqrt(Math.max(0, 1 - c * c)),
+				nx = vx * c - h * vy,
+				ny = vy * c + h * vx,
+				middleFrom = middleSegment(fromCircleCenter, nx, ny, 1),
+				middleTo = middleSegment(toCircleCenter, nx, ny, -1),
+				path;
+
+			path = new Path(from)
+				.line(fromLineEnd)
+				.arc({
+					r: ArrowCurveRadius,
+					xy: middleFrom
+				})
+				.line(middleTo)
+				.arc({
+					r: ArrowCurveRadius,
+					xy: toLineEnd,
+					sweep: 1
+				})
+				.line(to);
+
+			return path.svg;
 		},
 
 
