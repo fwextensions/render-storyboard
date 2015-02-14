@@ -5,7 +5,8 @@ define([
 ) {
 	var Methods = {
 			move: "M",
-			line: "L"
+			line: "L",
+			cubic: "C"
 		},
 		Arc = _.template("${command}${rx} ${ry} ${rotation} ${largeArc} ${sweep} ${x} ${y} ");
 

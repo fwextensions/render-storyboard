@@ -17,11 +17,10 @@ define([
 ) {
 	var ArrowCurveRadius = 8,
 		ArrowCurveOffset = Math.sqrt(Math.pow(ArrowCurveRadius, 2) / 2),
+		ArrowCurveCPDistance = ArrowCurveOffset,
 		ArrowLineLength = 45,
 		ArrowColor = "#b0b0b0",
 		ArrowWidth = 3;
-
-	var BezierCurve = _.template("M${from.x},${from.y} L${from.x},<%= from.y + 45 %> C${from.x},<%= from.y + 90 %> ${to.x},<%= to.y - 90 %> ${to.x},<%= to.y - 45 %> L${to.x},${to.y}");
 
 
 	function Storyboard(
@@ -151,6 +150,38 @@ define([
 			}
 
 
+			function unitVector(
+				from,
+				to)
+			{
+				var magnitude = hypotenuse(from, to),
+					x = (to.x - from.x) / magnitude,
+					y = (to.y - from.y) / magnitude;
+
+				x = !_.isFinite(x) ? 0 : x;
+				y = !_.isFinite(y) ? 0 : y;
+
+				return {
+					x: x,
+					y: y
+				};
+			}
+
+
+			function extendLine(
+				from,
+				to,
+				distance)
+			{
+				var vector = unitVector(from, to);
+
+				return {
+					x: to.x + vector.x * distance,
+					y: to.y + vector.y * distance
+				};
+			}
+
+
 			var points = this.getConnectingPoints(element1, element2),
 				from = points.from,
 				to = points.to,
@@ -167,20 +198,17 @@ define([
 				ny = vy * c + h * vx,
 				middleFrom = middleSegment(fromCircleCenter, nx, ny, 1),
 				middleTo = middleSegment(toCircleCenter, nx, ny, -1),
+				curve1CP1 = extendLine(from, fromLineEnd, ArrowCurveCPDistance),
+				curve1CP2 = extendLine(middleTo, middleFrom, ArrowCurveCPDistance),
+				curve2CP1 = extendLine(middleFrom, middleTo, ArrowCurveCPDistance),
+				curve2CP2 = extendLine(to, toLineEnd, ArrowCurveCPDistance),
 				path;
 
 			path = new Path(from)
 				.line(fromLineEnd)
-				.arc({
-					r: ArrowCurveRadius,
-					xy: middleFrom
-				})
+				.cubic(curve1CP1, curve1CP2, middleFrom)
 				.line(middleTo)
-				.arc({
-					r: ArrowCurveRadius,
-					xy: toLineEnd,
-					sweep: 1
-				})
+				.cubic(curve2CP1, curve2CP2, toLineEnd)
 				.line(to);
 
 			return path.svg;
