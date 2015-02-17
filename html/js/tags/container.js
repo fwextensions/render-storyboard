@@ -3,6 +3,7 @@ define([
 	"./base",
 	"./consts",
 	"./utils",
+	"../path",
 //	"./state",
 	"fabric",
 	"Promise",
@@ -11,6 +12,7 @@ define([
 	base,
 	k,
 	utils,
+	Path,
 	fabric,
 	Promise,
 //	state,
@@ -160,6 +162,7 @@ define([
 	// =======================================================================
 	tag("scene", Container, {
 		TitleBarHeight: 32,
+		TitleBarCurveRadius: 4,
 
 
 		init: function(
@@ -189,9 +192,11 @@ console.log("SCENE", this.name);
 		{
 			var firstChild = this.children[0],
 				labelWidth = firstChild && firstChild.width || k.DefaultWidth,
-				sceneHeight = firstChild && firstChild.height || k.DefaultHeight;
+				sceneHeight = firstChild && firstChild.height || k.DefaultHeight,
+				path;
 
-				// draw a border around the scene contents
+				// draw a border around the scene contents and put it after the
+				// child elements, so it's on top of them
 			childElements.push(this.createRect({
 				left: 0,
 				top: 0,
@@ -199,12 +204,24 @@ console.log("SCENE", this.name);
 				height: sceneHeight
 			}));
 
+				// draw the header as a three-sided path, with rounded top corners
+			path = new Path({ x: labelWidth, y: 0 })
+				.line({ x: labelWidth, y: -this.TitleBarHeight + this.TitleBarCurveRadius })
+				.cubic(
+					{ x: labelWidth, y: -this.TitleBarHeight + this.TitleBarCurveRadius / 2 },
+					{ x: labelWidth - this.TitleBarCurveRadius / 2, y: -this.TitleBarHeight },
+					{ x: labelWidth - this.TitleBarCurveRadius, y: -this.TitleBarHeight }
+				)
+				.line({ x: this.TitleBarCurveRadius, y: -this.TitleBarHeight })
+				.cubic(
+					{ x: this.TitleBarCurveRadius / 2, y: -this.TitleBarHeight },
+					{ x: 0, y: -this.TitleBarHeight + this.TitleBarCurveRadius / 2},
+					{ x: 0, y: -this.TitleBarHeight + this.TitleBarCurveRadius }
+				)
+				.line({ x: 0, y: 0 });
+
 			return [
-				new fabric.Rect({
-					left: 0,
-					top: -this.TitleBarHeight,
-					width: labelWidth,
-					height: this.TitleBarHeight,
+				new fabric.Path(path.svg, {
 					fill: "white",
 					stroke: k.BorderColor
 				}),

@@ -20,7 +20,8 @@ define([
 		ArrowCurveCPDistance = ArrowCurveOffset,
 		ArrowLineLength = 45,
 		ArrowColor = "#b0b0b0",
-		ArrowWidth = 3;
+		ArrowWidth = 3,
+		ArrowHeadOffset = 16;
 
 
 	function Storyboard(
@@ -82,6 +83,7 @@ define([
 					return [scene.children[0].id, fabricScenes[i]];
 				}));
 
+console.time("render segues");
 			this.scenes.forEach(function(scene, i) {
 				var segues = scene.segues || [],
 					element = fabricScenes[i];
@@ -97,6 +99,7 @@ define([
 					}));
 				}.bind(this));
 			}.bind(this));
+console.timeEnd("render segues");
 		},
 
 
@@ -192,10 +195,11 @@ define([
 				distance = hypotenuse(fromCircleCenter, toCircleCenter),
 				vx = (toCircleCenter.x - fromCircleCenter.x) / distance,
 				vy = (toCircleCenter.y - fromCircleCenter.y) / distance,
+				sign = from.x > to.x ? -1 : 1,
 				c = (2 * ArrowCurveRadius) / distance,
 				h = Math.sqrt(Math.max(0, 1 - c * c)),
-				nx = vx * c - h * vy,
-				ny = vy * c + h * vx,
+				nx = vx * c - sign * h * vy,
+				ny = vy * c + sign * h * vx,
 				middleFrom = middleSegment(fromCircleCenter, nx, ny, 1),
 				middleTo = middleSegment(toCircleCenter, nx, ny, -1),
 				curve1CP1 = extendLine(from, fromLineEnd, ArrowCurveCPDistance),
@@ -209,7 +213,19 @@ define([
 				.cubic(curve1CP1, curve1CP2, middleFrom)
 				.line(middleTo)
 				.cubic(curve2CP1, curve2CP2, toLineEnd)
-				.line(to);
+				.line(to)
+					// draw the arrow head by moving to one end of it so that it's
+					// a two-segment line separate from the rest of the line,
+					// which gives it a sharp corner
+				.move({
+					x: to.x - ArrowHeadOffset,
+					y: to.y - ArrowHeadOffset
+				})
+				.line(to)
+				.line({
+					x: to.x + ArrowHeadOffset,
+					y: to.y - ArrowHeadOffset
+				});
 
 			return path.svg;
 		},
@@ -268,6 +284,12 @@ define([
 				};
 			});
 			distances = _.sortBy(distances, "distance");
+
+				// shift the from point up so it starts under the scene and shift
+				// the to point up so there's a gap between the arrow and the
+				// destination scene
+			distances[0].from.y -= 2;
+			distances[0].to.y -= 6;
 
 				// return the points that are the shortest distance apart
 			return distances[0];
