@@ -44,6 +44,7 @@ define([
 				// look for all the segues at any level within this scene
 			segueNodes = document.evaluate(".//segue", sceneNode);
 
+				// convert each XML segue into a JS object and store it on its scene
 			while (segueNode = segueNodes.iterateNext()) {
 				this.scenes[i].segues.push(xml2js(segueNode).segue);
 			}
@@ -87,6 +88,7 @@ console.time("render segues");
 				var segues = scene.segues || [],
 					element = fabricScenes[i];
 
+					// calculate a path for each segue and add it to the canvas
 				segues.forEach(function(segue) {
 					var destination = scenesByRootViewID[segue._destination],
 						path = this.calcSeguePath(element, destination);
@@ -106,24 +108,46 @@ console.timeEnd("render segues");
 			element1,
 			element2)
 		{
+			var Horizontal = { x: 1, y: 0 },
+				Vertical = { x: 0, y: 1 },
+				SideIncrements = {
+					left: Horizontal,
+					top: Vertical,
+					right: Horizontal,
+					bottom: Vertical
+				};
+
+
 			function line(
 				start,
 				direction)
 			{
+					// we want to extend the line horizontally for points that
+					// are on the left/right sides, and vertically for those
+					// on the top/bottom sides
+				var length = ArrowLineLength * direction,
+					increment = SideIncrements[start.side];
+
 				return {
-					x: start.x,
-					y: start.y + ArrowLineLength * direction
+					x: start.x + length * increment.x,
+					y: start.y + length * increment.y
 				};
 			}
 
 
 			function circleCenter(
 				start,
+				side,
 				direction)
 			{
+				var length = ArrowCurveRadius * direction,
+					increment = SideIncrements[side];
+
+					// we need to reverse the 1 and 0 values from SideIncrements
+					// when placing the circle
 				return {
-					x: start.x + ArrowCurveRadius * direction,
-					y: start.y
+					x: start.x + length * Math.abs(increment.x - 1),
+					y: start.y + length * Math.abs(increment.y - 1)
 				};
 			}
 
@@ -170,9 +194,12 @@ console.timeEnd("render segues");
 			function extendLine(
 				from,
 				to,
-				distance)
+				distance,
+				maxLength)
 			{
 				var vector = unitVector(from, to);
+
+				distance = Math.min(distance, maxLength);
 
 				return {
 					x: to.x + vector.x * distance,
@@ -184,25 +211,31 @@ console.timeEnd("render segues");
 			var points = this.getConnectingPoints(element1, element2),
 				from = points.from,
 				to = points.to,
+					// calculate a short line perpendicular to the from and to points
 				fromLineEnd = line(from, 1),
 				toLineEnd = line(to, -1),
+					// we'll need to move in opposite directions when going from
+					// left to right vs. right to left
 				sign = from.x > to.x ? -1 : 1,
-				fromCircleCenter = circleCenter(fromLineEnd, 1 * sign),
-				toCircleCenter = circleCenter(toLineEnd, -1 * sign),
+				fromCircleCenter = circleCenter(fromLineEnd, from.side, sign),
+				toCircleCenter = circleCenter(toLineEnd, to.side, -sign),
 				d = distance(fromCircleCenter, toCircleCenter),
 				vx = (toCircleCenter.x - fromCircleCenter.x) / d,
 				vy = (toCircleCenter.y - fromCircleCenter.y) / d,
 				c = (2 * ArrowCurveRadius) / d,
 				h = Math.sqrt(Math.max(0, 1 - c * c)),
-				nx = vx * c - sign * h * vy,
-				ny = vy * c + sign * h * vx,
+				circleSign = (from.x > to.x ? -1 : 1) * (from.side == "bottom" ? 1 : -1),
+				nx = vx * c - circleSign * h * vy,
+				ny = vy * c + circleSign * h * vx,
 				middleFrom = middleSegment(fromCircleCenter, nx, ny, 1),
 				middleTo = middleSegment(toCircleCenter, nx, ny, -1),
 // TODO: need to make sure the cps don't extend past the toLineEnd point, which causes the curve to bulge
-				curve1CP1 = extendLine(from, fromLineEnd, ArrowCurveCPDistance),
-				curve1CP2 = extendLine(middleTo, middleFrom, ArrowCurveCPDistance),
-				curve2CP1 = extendLine(middleFrom, middleTo, ArrowCurveCPDistance),
-				curve2CP2 = extendLine(to, toLineEnd, ArrowCurveCPDistance),
+// seems to actually be caused by the middle segment being longer than the distance between the from/to lines
+				maxHandleLength = distance(fromLineEnd, middleFrom) / 2,
+				curve1CP1 = extendLine(from, fromLineEnd, ArrowCurveCPDistance, maxHandleLength),
+				curve1CP2 = extendLine(middleTo, middleFrom, ArrowCurveCPDistance, maxHandleLength),
+				curve2CP1 = extendLine(middleFrom, middleTo, ArrowCurveCPDistance, maxHandleLength),
+				curve2CP2 = extendLine(to, toLineEnd, ArrowCurveCPDistance, maxHandleLength),
 				path;
 
 			path = new Path(from)
@@ -213,15 +246,17 @@ console.timeEnd("render segues");
 				.line(to)
 					// draw the arrow head by moving to one end of it so that it's
 					// a two-segment line separate from the rest of the line,
-					// which gives it a sharp corner
+					// which gives it a sharp corner.  moving back in both X and Y
+					// will be either the top point of the arrow or the left point.
 				.move({
 					x: to.x - ArrowHeadOffset,
 					y: to.y - ArrowHeadOffset
 				})
 				.line(to)
+					// reverse the direction when drawing a side arrow vs. top
 				.line({
-					x: to.x + ArrowHeadOffset,
-					y: to.y - ArrowHeadOffset
+					x: to.x + ArrowHeadOffset * (to.side == "top" ? 1 : -1),
+					y: to.y - ArrowHeadOffset * (to.side == "top" ? 1 : -1)
 				});
 
 			return path.svg;
@@ -248,10 +283,10 @@ console.timeEnd("render segues");
 						zero: 0
 					},
 					sides = [
-						["zero", "halfHeight"],
-						["halfWidth", "zero"],
-						["width", "halfHeight"],
-						["halfWidth", "height"]
+						["zero", "halfHeight", "left"],
+						["halfWidth", "zero", "top"],
+						["width", "halfHeight", "right"],
+						["halfWidth", "height", "bottom"]
 					];
 
 					// return a range of points from the middles of the sides of
@@ -259,37 +294,41 @@ console.timeEnd("render segues");
 				return sides.slice(range[0], range[1]).map(function(side) {
 					return {
 						x: x + geometry[side[0]],
-						y: y + geometry[side[1]]
+						y: y + geometry[side[1]],
+						side: side[2]
 					};
 				});
 			}
 
 			var fromPoints = generatePoints(element1, [2, 4]),
 				toPoints = generatePoints(element2, [0, 2]),
-				distances;
+				distances,
+				shortestPath;
 
-			distances = _.map(_.zip(fromPoints, toPoints), function(points) {
-				var from = points[0],
-					to = points[1],
-					dx = Math.abs(from.x - to.x),
-					dy = Math.abs(from.y - to.y);
+				// each point in fromPoints will return an array of two distance
+				// objects, so flatten the array of arrays
+			distances = _.flatten(fromPoints.map(function(from) {
+				return toPoints.map(function(to) {
+					var dx = Math.abs(from.x - to.x),
+						dy = Math.abs(from.y - to.y);
 
-				return {
-					distance: dx + dy,
-					from: from,
-					to: to
-				};
-			});
-			distances = _.sortBy(distances, "distance");
+					return {
+						distance: dx + dy,
+						from: from,
+						to: to
+					};
+				});
+			}));
+			shortestPath = _.sortBy(distances, "distance")[0];
 
 				// shift the from point up so it starts under the scene and shift
 				// the to point up so there's a gap between the arrow and the
-				// destination scene
-			distances[0].from.y -= 2;
-			distances[0].to.y -= 6;
+				// destination scene.  do it on the X-axis for horizontal arrows.
+			shortestPath.from[shortestPath.from.side == "bottom" ? "y" : "x"] -= 2;
+			shortestPath.to[shortestPath.to.side == "top" ? "y" : "x"] -= 6;
 
 				// return the points that are the shortest distance apart
-			return distances[0];
+			return shortestPath;
 		}
 	});
 
