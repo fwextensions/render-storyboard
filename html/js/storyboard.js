@@ -15,9 +15,8 @@ define([
 	xml2js,
 	_
 ) {
-	var ArrowCurveRadius = 8,
-		ArrowCurveOffset = Math.sqrt(Math.pow(ArrowCurveRadius, 2) / 2),
-		ArrowCurveCPDistance = ArrowCurveOffset,
+	var ArrowCurveRadius = 12,
+		ArrowCurveCPDistance = ArrowCurveRadius / 2,
 		ArrowLineLength = 45,
 		ArrowColor = "#b0b0b0",
 		ArrowWidth = 3,
@@ -123,7 +122,7 @@ console.timeEnd("render segues");
 				direction)
 			{
 				return {
-					x: start.x + ArrowCurveOffset * direction,
+					x: start.x + ArrowCurveRadius * direction,
 					y: start.y
 				};
 			}
@@ -142,14 +141,11 @@ console.timeEnd("render segues");
 			}
 
 
-			function hypotenuse(
+			function distance(
 				a,
 				b)
 			{
-				return Math.sqrt(
-					Math.pow(a.x - b.x, 2),
-					Math.pow(b.y - b.y, 2)
-				);
+				return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2));
 			}
 
 
@@ -157,7 +153,7 @@ console.timeEnd("render segues");
 				from,
 				to)
 			{
-				var magnitude = hypotenuse(from, to),
+				var magnitude = distance(from, to),
 					x = (to.x - from.x) / magnitude,
 					y = (to.y - from.y) / magnitude;
 
@@ -190,18 +186,19 @@ console.timeEnd("render segues");
 				to = points.to,
 				fromLineEnd = line(from, 1),
 				toLineEnd = line(to, -1),
-				fromCircleCenter = circleCenter(fromLineEnd, 1),
-				toCircleCenter = circleCenter(toLineEnd, -1),
-				distance = hypotenuse(fromCircleCenter, toCircleCenter),
-				vx = (toCircleCenter.x - fromCircleCenter.x) / distance,
-				vy = (toCircleCenter.y - fromCircleCenter.y) / distance,
 				sign = from.x > to.x ? -1 : 1,
-				c = (2 * ArrowCurveRadius) / distance,
+				fromCircleCenter = circleCenter(fromLineEnd, 1 * sign),
+				toCircleCenter = circleCenter(toLineEnd, -1 * sign),
+				d = distance(fromCircleCenter, toCircleCenter),
+				vx = (toCircleCenter.x - fromCircleCenter.x) / d,
+				vy = (toCircleCenter.y - fromCircleCenter.y) / d,
+				c = (2 * ArrowCurveRadius) / d,
 				h = Math.sqrt(Math.max(0, 1 - c * c)),
 				nx = vx * c - sign * h * vy,
 				ny = vy * c + sign * h * vx,
 				middleFrom = middleSegment(fromCircleCenter, nx, ny, 1),
 				middleTo = middleSegment(toCircleCenter, nx, ny, -1),
+// TODO: need to make sure the cps don't extend past the toLineEnd point, which causes the curve to bulge
 				curve1CP1 = extendLine(from, fromLineEnd, ArrowCurveCPDistance),
 				curve1CP2 = extendLine(middleTo, middleFrom, ArrowCurveCPDistance),
 				curve2CP1 = extendLine(middleFrom, middleTo, ArrowCurveCPDistance),
