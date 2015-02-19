@@ -18,6 +18,10 @@ define([
 //	state,
 	_
 ) {
+	var URLTemplate = _.template("Images.xcassets/${imageName}.imageset/${imageName}.png");
+//	var URLTemplate = _.template("Images.xcassets/${imageName}.imageset/${imageName}@2x.png");
+
+
 	var tag = base.tag,
 		tags = base.tags,
 		TagBase = base.TagBase,
@@ -76,7 +80,7 @@ define([
 
 		render: function()
 		{
-			return Promise.all(_.invoke(this.children, "render"))
+			return Promise.all(_.filter(_.invoke(this.children, "render")))
 				.bind(this)
 				.then(function(childElements) {
 						// renderFrame() may return an array of elements, so
@@ -166,24 +170,37 @@ define([
 
 
 		init: function(
-			inNode)
+			inNode,
+			inStoryboard)
 		{
 			this._super(inNode);
 
+			this.storyboard = inStoryboard;
 			this.addAttributes(this.node.point, ["_x", "_y"]);
 			this.addChildren(this.node.objects);
 			this.name = "Scene";
 			this.id = this.node._sceneID;
-			this.segues = [];
 
-				// TODO: handle offscreen scenes better
-			this.x += k.XOffset;
-			this.y += k.YOffset;
+				// the segues array will get filled in by the Storyboard
+			this.segues = [];
 
 			if (this.children.length) {
 				this.name = this.splitCamelCase(this.children[0].name) || "Scene";
 			}
 console.log("SCENE", this.name);
+		},
+
+
+		getGroupAttributes: function()
+		{
+			var attributes = this._super(),
+				offset = this.storyboard.getOriginOffset();
+
+				// adjust the scene position so it's visible on the canvas
+			attributes.left = this.x + offset.x;
+			attributes.top = this.y + offset.y;
+
+			return attributes;
 		},
 
 
@@ -239,6 +256,36 @@ console.log("SCENE", this.name);
 					fill: k.LabelColor
 				})
 			];
+		},
+
+
+// TODO: clip scene children some other way
+		zrender: function()
+		{
+				// we have to override render() so that we can flatten the images
+				// into an image that's clipped to the size of the scrollView
+			return Promise.all(_.filter(_.invoke(this.children, "render")))
+				.bind(this)
+				.then(function(childElements) {
+						// create the frame first, which has the side effect of
+						// adding a border to the childElements array
+					var frame = this.renderFrame(childElements),
+						group = this.createGroup(childElements),
+						dataURL = group.toDataURL({
+							format: "png",
+							left: 0,
+							top: 0,
+							width: this.width,
+							height: this.height
+						}),
+						self = this;
+
+					return new Promise(function(resolve, reject) {
+						fabric.Image.fromURL(dataURL, function(image) {
+							resolve(self.createGroup(frame.concat(image)));
+						});
+					});
+				});
 		}
 	});
 
@@ -310,8 +357,10 @@ console.log("SCENE", this.name);
 		render: function()
 		{
 				// we have to override render() so that we can flatten the images
-				// into an image that's clipped to the size of the scrollView
-			return Promise.all(_.invoke(this.children, "render"))
+				// into an image that's clipped to the size of the scrollView.
+				// call filter on the rendered child elements to clear out elements
+				// that didn't render anything.
+			return Promise.all(_.filter(_.invoke(this.children, "render")))
 				.bind(this)
 				.then(function(childElements) {
 					var group = this.createGroup(childElements),
@@ -326,8 +375,8 @@ console.log("SCENE", this.name);
 							// uncropped height, which throws off the scene height
 						var dataURL = group.toDataURL({
 								format: "png",
-								left: 0,
-								top: 0,
+								left: group.left,
+								top: group.top,
 								width: self.width,
 								height: self.height
 							});
@@ -340,6 +389,85 @@ console.log("SCENE", this.name);
 						});
 					});
 				});
+		}
+	});
+
+
+	// =======================================================================
+	tag("view", RectContainer, {
+		init: function(
+			inNode)
+		{
+			this._super(inNode);
+
+			this.addChildren(this.node.subviews);
+		}
+	});
+
+
+	// =======================================================================
+	tag("button", RectContainer, {
+		init: function(
+			inNode)
+		{
+			this._super(inNode);
+
+			this.state = findOne(this.node, "state");
+			this.addAttributes(this.node);
+		},
+
+
+		fitToFrame: function(
+			image)
+		{
+			var imageAspect = image.width / image.height,
+				buttonAspect = this.width / this.height;
+
+			if (buttonAspect < imageAspect) {
+				image.scaleToWidth(this.width);
+			} else {
+				image.scaleToHeight(this.height);
+			}
+		},
+
+
+		render: function()
+		{
+			var attributes = {
+						// center the image or title inside the button shape
+					left: this.x + this.width / 2,
+					top: this.y + this.height / 2,
+					originX: "center",
+					originY: "center",
+					visible: this.node._hidden !== "YES"
+				},
+				imageName = this.state._image,
+				title = this.state._title,
+				self = this,
+				url;
+
+			if (imageName) {
+				url = URLTemplate({ imageName: imageName });
+
+					// return a promise that gets resolved when the image loads
+				return new Promise(function(resolve, reject) {
+					fabric.Image.fromURL(url, function(image) {
+						self.fitToFrame(image);
+						image.set(attributes);
+						resolve(image);
+					});
+				});
+			} else if (title) {
+				_.assign(attributes, {
+					fontFamily: k.ButtonFont,
+					fontSize: 15,
+					fontWeight: "bold",
+					textAlign: "center",
+					fill: k.ButtonColor
+				});
+
+				return new fabric.Text(title, attributes);
+			}
 		}
 	});
 

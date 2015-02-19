@@ -20,7 +20,8 @@ define([
 		ArrowLineLength = 45,
 		ArrowColor = "#b0b0b0",
 		ArrowWidth = 3,
-		ArrowHeadOffset = 16;
+		ArrowHeadOffset = 16,
+		StoryboardPadding = 10;
 
 
 	function Storyboard(
@@ -30,7 +31,12 @@ define([
 
 			// turn the <scene> elements into JS objects
 		this.scenes = this.storyboard.scenes.scene.map(function(sceneData) {
-			return new tags.scene(sceneData);
+			var scene = new tags.scene(sceneData, this);
+
+				// update the min storyboard origin based on this scene's location
+			this.updateOrigin(scene);
+
+			return scene;
 		}.bind(this));
 
 			// loop through each scene in the XML DOM
@@ -55,6 +61,27 @@ define([
 
 
 	_.assign(Storyboard.prototype, {
+		minX: Infinity,
+		minY: Infinity,
+
+
+		updateOrigin: function(
+			scene)
+		{
+			this.minX = Math.min(this.minX, scene.x);
+			this.minY = Math.min(this.minY, scene.y);
+		},
+
+
+		getOriginOffset: function()
+		{
+			return {
+				x: -this.minX + StoryboardPadding,
+				y: -this.minY + StoryboardPadding
+			};
+		},
+
+
 		render: function(
 			canvasID)
 		{

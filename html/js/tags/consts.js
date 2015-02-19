@@ -11,6 +11,8 @@ define([
 		LabelFont: "Helvetica",
 		LabelColor: "#5f5f5f",
 		BorderColor: "#b5b5b5",
+		ButtonFont: "Helvetica",
+		ButtonColor: "rgb(0,122,255)",
 		ViewBackgroundColor: "#f0f0f0",
 		ViewBackgroundLabelColor: "#cbcbcf",
 		RGBTemplate: _.template("rgb(<%= _red * 255 %>, <%= _green * 255 %>, <%= _blue * 255 %>)"),
