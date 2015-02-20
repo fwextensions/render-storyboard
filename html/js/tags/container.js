@@ -171,6 +171,11 @@ define([
 		TitleBarCurveRadius: 4,
 
 
+		storyboard: null,
+		segues: null,
+		isInitialScene: false,
+
+
 		init: function(
 			inNode,
 			inStoryboard)
@@ -186,10 +191,13 @@ define([
 				// the segues array will get filled in by the Storyboard
 			this.segues = [];
 
-			if (this.children.length) {
-				this.name = this.splitCamelCase(this.children[0].name) || "Scene";
+			var firstChild = this.children[0];
+
+			if (firstChild) {
+				this.name = this.splitCamelCase(firstChild.name) || "Scene";
+				this.isInitialScene = firstChild.id == this.storyboard.initialViewControllerID;
 			}
-console.log("SCENE", this.name);
+console.log("SCENE", this.name, this.isInitialScene);
 		},
 
 
@@ -210,7 +218,7 @@ console.log("SCENE", this.name);
 			childElements)
 		{
 			var firstChild = this.children[0],
-				labelWidth = firstChild && firstChild.width || k.DefaultWidth,
+				sceneWidth = firstChild && firstChild.width || k.DefaultWidth,
 				sceneHeight = firstChild && firstChild.height || k.DefaultHeight,
 				path;
 
@@ -219,17 +227,17 @@ console.log("SCENE", this.name);
 			childElements.push(this.createRect({
 				left: 0,
 				top: 0,
-				width: labelWidth,
+				width: sceneWidth,
 				height: sceneHeight
 			}));
 
 				// draw the header as a three-sided path, with rounded top corners
-			path = new Path({ x: labelWidth, y: 0 })
-				.line({ x: labelWidth, y: -this.TitleBarHeight + this.TitleBarCurveRadius })
+			path = new Path({ x: sceneWidth, y: 0 })
+				.line({ x: sceneWidth, y: -this.TitleBarHeight + this.TitleBarCurveRadius })
 				.cubic(
-					{ x: labelWidth, y: -this.TitleBarHeight + this.TitleBarCurveRadius / 2 },
-					{ x: labelWidth - this.TitleBarCurveRadius / 2, y: -this.TitleBarHeight },
-					{ x: labelWidth - this.TitleBarCurveRadius, y: -this.TitleBarHeight }
+					{ x: sceneWidth, y: -this.TitleBarHeight + this.TitleBarCurveRadius / 2 },
+					{ x: sceneWidth - this.TitleBarCurveRadius / 2, y: -this.TitleBarHeight },
+					{ x: sceneWidth - this.TitleBarCurveRadius, y: -this.TitleBarHeight }
 				)
 				.line({ x: this.TitleBarCurveRadius, y: -this.TitleBarHeight })
 				.cubic(
@@ -247,9 +255,9 @@ console.log("SCENE", this.name);
 				new fabric.Text(this.name, {
 					originX: "center",
 					originY: "center",
-					left: labelWidth / 2,
+					left: sceneWidth / 2,
 					top: -this.TitleBarHeight / 2,
-					width: labelWidth,
+					width: sceneWidth,
 					height: this.TitleBarHeight,
 					fontFamily: k.LabelFont,
 					fontSize: 13,
@@ -433,7 +441,8 @@ console.log("SCENE", this.name);
 		{
 			this._super(inNode);
 
-			this.state = findOne(this.node, "state");
+				// look for the normal key to find the state to render
+			this.state = _.where(findAll(this.node, "state"), { _key: "normal" })[0];
 			this.addAttributes(this.node);
 		},
 

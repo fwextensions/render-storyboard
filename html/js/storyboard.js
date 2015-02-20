@@ -2,6 +2,7 @@ define([
 	"./path",
 	"./tags",
 	"./tags/utils",
+	"./tags/consts",
 	"Promise",
 	"fabric",
 	"xml2json",
@@ -10,6 +11,7 @@ define([
 	Path,
 	tags,
 	utils,
+	k,
 	Promise,
 	fabric,
 	xml2js,
@@ -18,16 +20,16 @@ define([
 	var ArrowCurveRadius = 12,
 		ArrowCurveCPDistance = ArrowCurveRadius / 2,
 		ArrowLineLength = 40,
-		ArrowColor = "#b0b0b0",
-		ArrowWidth = 3,
-		ArrowHeadOffset = 16,
-		StoryboardPadding = 10;
+			// make the padding wide enough to accommodate the initial arrow
+			// being the left-most element
+		StoryboardPadding = 100;
 
 
 	function Storyboard(
 		xmlDOM)
 	{
 		this.storyboard = xml2js(xmlDOM).document;
+		this.initialViewControllerID = this.storyboard._initialViewController;
 
 			// turn the <scene> elements into JS objects
 		this.scenes = this.storyboard.scenes.scene.map(function(sceneData) {
@@ -61,6 +63,9 @@ define([
 
 
 	_.assign(Storyboard.prototype, {
+		storyboard: null,
+		scenes: null,
+		initialViewControllerID: "",
 		minX: Infinity,
 		minY: Infinity,
 
@@ -121,11 +126,23 @@ console.time("render segues");
 						path = this.calcSeguePath(element, destination);
 
 					this.canvas.add(new fabric.Path(path, {
-						stroke: ArrowColor,
-						strokeWidth: ArrowWidth,
+						stroke: k.SegueColor,
+						strokeWidth: k.SegueWidth,
 						fill: null
 					}));
 				}.bind(this));
+
+				if (scene.isInitialScene) {
+						// draw the arrow that points at the initial scene from
+						// the left
+					this.canvas.add(
+						new fabric.Path(this.calcInitialArrowPath(element).svg, {
+							stroke: k.SegueColor,
+							strokeWidth: k.SegueWidth,
+							fill: null
+						})
+					);
+				}
 			}.bind(this));
 console.timeEnd("render segues");
 		},
@@ -276,14 +293,14 @@ console.timeEnd("render segues");
 					// which gives it a sharp corner.  moving back in both X and Y
 					// will be either the top point of the arrow or the left point.
 				.move({
-					x: to.x - ArrowHeadOffset,
-					y: to.y - ArrowHeadOffset
+					x: to.x - k.ArrowHeadOffset,
+					y: to.y - k.ArrowHeadOffset
 				})
 				.line(to)
 					// reverse the direction when drawing a side arrow vs. top
 				.line({
-					x: to.x + ArrowHeadOffset * (to.side == "top" ? 1 : -1),
-					y: to.y - ArrowHeadOffset * (to.side == "top" ? 1 : -1)
+					x: to.x + k.ArrowHeadOffset * (to.side == "top" ? 1 : -1),
+					y: to.y - k.ArrowHeadOffset * (to.side == "top" ? 1 : -1)
 				});
 
 			return path.svg;
@@ -351,11 +368,33 @@ console.timeEnd("render segues");
 				// shift the from point up so it starts under the scene and shift
 				// the to point up so there's a gap between the arrow and the
 				// destination scene.  do it on the X-axis for horizontal arrows.
-			shortestPath.from[shortestPath.from.side == "bottom" ? "y" : "x"] -= 2;
-			shortestPath.to[shortestPath.to.side == "top" ? "y" : "x"] -= 6;
+			shortestPath.from[shortestPath.from.side == "bottom" ? "y" : "x"] += k.SegueFromOffset;
+			shortestPath.to[shortestPath.to.side == "top" ? "y" : "x"] += k.SegueToOffset;
 
 				// return the points that are the shortest distance apart
 			return shortestPath;
+		},
+
+
+		calcInitialArrowPath: function(
+			element)
+		{
+			var middleLeft = {
+					x: element.left + k.SegueToOffset,
+					y: element.top + element.height / 2
+				};
+
+			return new Path(middleLeft)
+				.line({ x: middleLeft.x - k.InitialSceneArrowLength, y: middleLeft.y })
+				.move({
+					x: middleLeft.x - k.ArrowHeadOffset,
+					y: middleLeft.y - k.ArrowHeadOffset
+				})
+				.line(middleLeft)
+				.line({
+					x: middleLeft.x - k.ArrowHeadOffset,
+					y: middleLeft.y + k.ArrowHeadOffset
+				});
 		}
 	});
 
