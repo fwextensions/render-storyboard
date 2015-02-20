@@ -18,8 +18,8 @@ define([
 //	state,
 	_
 ) {
-	var URLTemplate = _.template("Images.xcassets/${imageName}.imageset/${imageName}.png");
-//	var URLTemplate = _.template("Images.xcassets/${imageName}.imageset/${imageName}@2x.png");
+//	var URLTemplate = _.template("Images.xcassets/${imageName}.imageset/${imageName}.png");
+	var URLTemplate = _.template("Images.xcassets/${imageName}.imageset/${imageName}@2x.png");
 
 
 	var tag = base.tag,
@@ -80,14 +80,16 @@ define([
 
 		render: function()
 		{
-			return Promise.all(_.filter(_.invoke(this.children, "render")))
+			return Promise.all(_.invoke(this.children, "render"))
 				.bind(this)
 				.then(function(childElements) {
 						// renderFrame() may return an array of elements, so
 						// flatten that with childElements on the end, so they're
 						// above the frame.  pass childElements into renderFrame()
 						// so that it can be based on the sizes of the children.
-					childElements = _.flatten([this.renderFrame(childElements), childElements]);
+						// filter the array in case a child or renderFrame()
+						// returned null.
+					childElements = _.filter(_.flatten([this.renderFrame(childElements), childElements]));
 
 						// give subclasses a chance to change the attributes
 					return this.createGroup(childElements, this.getGroupAttributes());
@@ -363,27 +365,39 @@ console.log("SCENE", this.name);
 			return Promise.all(_.filter(_.invoke(this.children, "render")))
 				.bind(this)
 				.then(function(childElements) {
-					var group = this.createGroup(childElements),
+						// add an invisible rect the size of the scrollView behind
+						// the child elements so that they maintain their relative
+						// locations when they're flattened into an image
+					childElements.unshift(this.createRect({
+						stroke: null,
+						fill: "white",
+						opacity: 0
+					}));
+
+						// don't use this.createGroup() because we want the group
+						// to be at the natural location of the child elements,
+						// not the scrollView's location
+					var group = new fabric.Group(childElements),
 						attributes = this.getGroupAttributes(),
 						self = this;
 
 					return new Promise(function(resolve, reject) {
-// TODO: this won't work if the child views aren't right at the top of the scrollView
 							// instead of cloning the group as an image and clipping
 							// it, it's simpler to convert it to a cropped dataURL,
 							// since the cloned image will retain the original
 							// uncropped height, which throws off the scene height
 						var dataURL = group.toDataURL({
 								format: "png",
-								left: group.left,
-								top: group.top,
+								left: attributes.left,
+								top: attributes.top,
 								width: self.width,
 								height: self.height
 							});
 
 						fabric.Image.fromURL(dataURL, function(image) {
 								// position the image where the scrollView is and
-								// return it as the element that renders the group
+								// hide it if the scrollView is, then return it
+								// as the element that renders the group
 							image.set(attributes);
 							resolve(image);
 						});
@@ -401,6 +415,13 @@ console.log("SCENE", this.name);
 			this._super(inNode);
 
 			this.addChildren(this.node.subviews);
+		},
+
+
+		renderFrame: function()
+		{
+				// don't render a border around the view
+			return null;
 		}
 	});
 
@@ -441,7 +462,7 @@ console.log("SCENE", this.name);
 					originY: "center",
 					visible: this.node._hidden !== "YES"
 				},
-				imageName = this.state._image,
+				imageName = this.state._image || this.state._backgroundImage,
 				title = this.state._title,
 				self = this,
 				url;
@@ -461,7 +482,6 @@ console.log("SCENE", this.name);
 				_.assign(attributes, {
 					fontFamily: k.ButtonFont,
 					fontSize: 15,
-					fontWeight: "bold",
 					textAlign: "center",
 					fill: k.ButtonColor
 				});
@@ -473,11 +493,80 @@ console.log("SCENE", this.name);
 
 
 	// =======================================================================
-	tag("navigationController", ParentContainer);
+	tag("textField", RectContainer, {
+		render: function()
+		{
+				// a borderless field won't have a borderStyle attribute
+			if (this.node._borderStyle) {
+				return this.createRect({
+					rx: k.TextFieldCornerRadius,
+					ry: k.TextFieldCornerRadius
+				});
+			}
+		}
+	});
 
 
 	// =======================================================================
-	tag("tabBarController", ParentContainer);
+	tag("navigationController", ParentContainer, {
+		init: function(
+			inNode)
+		{
+			this._super(inNode);
+
+			var rect = findOne(this.node, "navigationBar.rect");
+
+			this.navigationBar = {};
+			this.addAttributes(rect, null, this.navigationBar);
+		},
+
+
+		render: function()
+		{
+			var childElements = this.renderFrame().concat(
+					this.createRect({
+						left: 0,
+						top: 0,
+						width: this.navigationBar.width,
+						height: this.navigationBar.height,
+						fill: k.NavigationBarColor
+					})
+				);
+
+			return this.createGroup(childElements, this.getGroupAttributes());
+		}
+	});
+
+
+	// =======================================================================
+	tag("tabBarController", ParentContainer, {
+		init: function(
+			inNode)
+		{
+			this._super(inNode);
+
+			var rect = findOne(this.node, "tabBar.rect");
+
+			this.tabBar = {};
+			this.addAttributes(rect, null, this.tabBar);
+		},
+
+
+		render: function()
+		{
+			var childElements = this.renderFrame().concat(
+					this.createRect({
+						left: 0,
+						top: this.height - this.tabBar.height,
+						width: this.tabBar.width,
+						height: this.tabBar.height,
+						fill: k.NavigationBarColor
+					})
+				);
+
+			return this.createGroup(childElements, this.getGroupAttributes());
+		}
+	});
 
 
 	// =======================================================================

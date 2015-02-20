@@ -107,11 +107,13 @@ define([
 
 		addAttributes: function(
 			node,
-			keys)
+			keys,
+			destination)
 		{
 			keys = _.filter(keys || _.keys(node), function(key) {
 					return key.indexOf("_") == 0;
 				});
+			destination = destination || this;
 
 			_.each(keys, function(key) {
 				var value = node[key];
@@ -120,8 +122,10 @@ define([
 					value = parseFloat(value);
 				}
 
-				this[key.slice(1)] = value;
+				destination[key.slice(1)] = value;
 			}, this);
+
+			return destination;
 		},
 
 

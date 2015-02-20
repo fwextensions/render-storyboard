@@ -17,7 +17,7 @@ define([
 ) {
 	var ArrowCurveRadius = 12,
 		ArrowCurveCPDistance = ArrowCurveRadius / 2,
-		ArrowLineLength = 45,
+		ArrowLineLength = 40,
 		ArrowColor = "#b0b0b0",
 		ArrowWidth = 3,
 		ArrowHeadOffset = 16,
@@ -242,8 +242,8 @@ console.timeEnd("render segues");
 				fromLineEnd = line(from, 1),
 				toLineEnd = line(to, -1),
 					// we'll need to move in opposite directions when going from
-					// left to right vs. right to left
-				sign = from.x > to.x ? -1 : 1,
+					// left to right vs. right to left, or bottom to top
+				sign = from.x > to.x || from.y > to.y ? -1 : 1,
 				fromCircleCenter = circleCenter(fromLineEnd, from.side, sign),
 				toCircleCenter = circleCenter(toLineEnd, to.side, -sign),
 				d = distance(fromCircleCenter, toCircleCenter),
@@ -251,7 +251,7 @@ console.timeEnd("render segues");
 				vy = (toCircleCenter.y - fromCircleCenter.y) / d,
 				c = (2 * ArrowCurveRadius) / d,
 				h = Math.sqrt(Math.max(0, 1 - c * c)),
-				circleSign = (from.x > to.x ? -1 : 1) * (from.side == "bottom" ? 1 : -1),
+				circleSign = (from.x > to.x ? -1 : 1) * (from.side == "bottom" || from.y > to.y ? 1 : -1),
 				nx = vx * c - circleSign * h * vy,
 				ny = vy * c + circleSign * h * vx,
 				middleFrom = middleSegment(fromCircleCenter, nx, ny, 1),
