@@ -196,6 +196,8 @@ define([
 			if (firstChild) {
 				this.name = this.splitCamelCase(firstChild.name) || "Scene";
 				this.isInitialScene = firstChild.id == this.storyboard.initialViewControllerID;
+				this.width = Math.max(firstChild.width, k.DefaultWidth);
+				this.height = Math.max(firstChild.height, k.DefaultHeight);
 			}
 console.log("SCENE", this.name, this.isInitialScene);
 		},

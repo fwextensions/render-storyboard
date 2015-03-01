@@ -16,5 +16,9 @@ console.timeEnd("generate scenes");
 
 console.time("render");
 	storyboard.render("canvas");
+//	storyboard.render("canvas").then(function(svg) {
+//console.log(svg.slice(0, 155));
+//		$("body").append(svg.slice(154));
+//	});
 console.timeEnd("render");
 });

@@ -36,7 +36,8 @@ define([
 			var scene = new tags.scene(sceneData, this);
 
 				// update the min storyboard origin based on this scene's location
-			this.updateOrigin(scene);
+				// and the overall storyboard bounds
+			this.updateBounds(scene);
 
 			return scene;
 		}.bind(this));
@@ -68,13 +69,17 @@ define([
 		initialViewControllerID: "",
 		minX: Infinity,
 		minY: Infinity,
+		maxX: -Infinity,
+		maxY: -Infinity,
 
 
-		updateOrigin: function(
+		updateBounds: function(
 			scene)
 		{
 			this.minX = Math.min(this.minX, scene.x);
 			this.minY = Math.min(this.minY, scene.y);
+			this.maxX = Math.max(this.maxX, scene.x + scene.width);
+			this.maxY = Math.max(this.maxY, scene.y + scene.height);
 		},
 
 
@@ -90,9 +95,15 @@ define([
 		render: function(
 			canvasID)
 		{
+				// create a new canvas at a size to accommodate all the scenes,
+				// with some padding
 			this.canvas = new fabric.Canvas(canvasID);
+			this.canvas.setDimensions({
+				width: this.maxX - this.minX + 2 * StoryboardPadding,
+				height: this.maxY - this.minY + 2 * StoryboardPadding
+			});
 
-			Promise.all(_.invoke(this.scenes, "render"))
+			return Promise.all(_.invoke(this.scenes, "render"))
 				.bind(this)
 				.then(function(fabricScenes) {
 						// wait for all the scenes to be rendered, then add them all in one
